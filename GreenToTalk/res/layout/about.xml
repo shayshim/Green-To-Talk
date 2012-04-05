@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:id="@+id/layout_root"
+              android:background="@color/white"
+              android:orientation="vertical"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent">
+              
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              android:background="@color/white"
+              android:orientation="horizontal"
+              android:layout_width="fill_parent"
+              android:layout_height="fill_parent"
+              android:padding="10dp"
+              >
+    <ImageView android:id="@+id/image"
+               android:layout_width="wrap_content"
+               android:layout_height="fill_parent"
+               android:layout_marginRight="10dp"
+               />
+    <TextView android:id="@+id/text1"
+              android:layout_width="wrap_content"
+              android:layout_height="fill_parent"
+              android:textColor="@color/black"
+              android:textStyle="bold"
+              />
+</LinearLayout>
+<TextView android:id="@+id/text2"
+              android:layout_width="wrap_content"
+              android:layout_height="fill_parent"
+              android:textColor="@color/black"
+              android:text="@string/about_msg"
+              android:textSize="20px"
+              />
+</LinearLayout>
+
+<!-- 
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+     android:layout_width="wrap_content" 
+     android:layout_height="wrap_content"
+     android:background="@color/white">
+     
+    <LinearLayout android:orientation="horizontal">
+    <ImageView android:id="@+id/ImageView01"
+     android:layout_width="wrap_content" android:layout_height="wrap_content"
+     android:layout_centerHorizontal="true" />
+     
+     <TextView android:text="@+id/TextView01" android:id="@+id/TextView01"
+     android:layout_width="fill_parent" android:layout_height="fill_parent" />
+     </LinearLayout>
+     
+     <Button android:id="@+id/Button01" 
+     android:layout_width="wrap_content" android:layout_height="wrap_content"
+     android:layout_centerHorizontal="true" android:text="OK" />
+     
+</RelativeLayout>
+-->
+<!--  
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+      android:layout_width="wrap_content"
+    	android:layout_height="wrap_content">
+    <TextView 
+          	android:layout_width="wrap_content"
+        	android:layout_height="wrap_content"
+        	android:text="@string/about_title"/>
+  	<TextView 
+          	android:layout_width="wrap_content"
+        	android:layout_height="wrap_content"
+        	android:text="@string/about_msg"/>
+</LinearLayout>
+-->
