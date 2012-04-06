@@ -38,7 +38,7 @@ public class SigninActivity extends Activity {
 	public static final String PARAM_USERNAME = "username";
 	public static final String GMAIL_DOMAIN = "gmail.com";
 	public static final String USER_DISCONNECTED = "user_disconnected";
-
+	public static final String ONLY_START_SERVICE = "only_start_service";
 	private static final String TAG = "AuthenticatorActivity";
 
 	/** for posting authentication attempts back to UI thread */
@@ -100,8 +100,9 @@ public class SigninActivity extends Activity {
 		if (TextUtils.isEmpty(mUsername) || TextUtils.isEmpty(mPassword)) {
 			mMessage.setText(getMessage());
 		} else {
+			String email = (mUsername.endsWith("@"+GMAIL_DOMAIN))? mUsername : mUsername+"@"+GMAIL_DOMAIN; 
 			// Start authenticating...
-			new AsyncConnectionTask(this).execute(mUsername+"@"+GMAIL_DOMAIN, mPassword);
+			new AsyncConnectionTask(this).execute(email, mPassword);
 		}
 	}
 
@@ -127,8 +128,11 @@ public class SigninActivity extends Activity {
 				edit.putString(GreenToTalkApplication.ACCOUNT_USERNAME_KEY, mUsername);
 				edit.putString(GreenToTalkApplication.ACCOUNT_PASSWORD_KEY, mPassword);
 				edit.commit();
-			} 
+			}
 			pickFreindsActivity();
+			Intent intent = new Intent(this, NotificationService.class);
+			intent.putExtra(ONLY_START_SERVICE, true);
+			startService(intent);
 		} else {
 			Log.e(TAG, "onAuthenticationResult: failed to authenticate");
 			if (!mApplication.isAccountConfigured() || isNewUser()) {
