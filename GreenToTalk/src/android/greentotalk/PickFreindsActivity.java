@@ -1,12 +1,5 @@
 package android.greentotalk;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-
-import org.jivesoftware.smack.packet.Presence;
-
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
@@ -28,9 +21,16 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
 import android.widget.Toast;
 
+
+/*
+ * 1. Need to implement array adaptor that works with contacts
+ * 2. Integrate it here
+ * 3. Check thread safety of mList
+ * 4. Check relevance of async contact supplier
+ * 
+ */
 public class PickFreindsActivity extends ListActivity {
 
 	private static final String TAG = "PickFreindsActivity";
@@ -40,51 +40,25 @@ public class PickFreindsActivity extends ListActivity {
 	private static final int DISCONNECT_DIALOG = 0;
 	private static final int SETTINGS_DIALOG = 1;
 	private static final int ABOUT_DIALOG = 2;
-	private static final int FOLLOWED_DIALOG = 3;
-	private SimpleAdapter mAdapter;
-	private AsyncContactsSupplier mAsyncContactsSupplier;
-	private ArrayList<Map<String, String>> mList = new ArrayList<Map<String, String>>();
-	private ContactListListenerService mMemberListUpdater;
-	private ContactsManager mContactsManager;
+	private static final int SELECTED_DIALOG = 3;
+	private ContactsArrayAdapter mAdapter;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		Log.i(TAG, "onCreate...");
-		mContactsManager = new ContactsManager();
-		mAsyncContactsSupplier = new AsyncContactsSupplier(this, mContactsManager);
-		try {
-			mAsyncContactsSupplier.execute().get();
-		} catch (InterruptedException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-	}
-
-	
-	public void InitializeUI() {
-		try {
-			mList = mAsyncContactsSupplier.get();
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} catch (ExecutionException e) {
-			e.printStackTrace();
-		}
-		String[] from = { NAME_FIELD, MODE_FIELD, EMAIL_FIELD };
-		int[] to = { R.id.label1, R.id.label2, R.id.label3 };
-		mAdapter = new SimpleAdapter(this, mList, R.layout.rowlayout, from, to);
+		ContactsManager.getInstance().updateContactList();
+		mAdapter = new ContactsArrayAdapter(this);
 		ListView lv = getListView();
 		lv.setTextFilterEnabled(true);
-		setListAdapter(mAdapter);
+		setListAdapter(mAdapter);		
+		setContentView(R.layout.contact_list);
 	}
 	
 	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-        	updateUI(intent);       
+        	updateUI(intent);
         }
     };
 	
@@ -103,33 +77,25 @@ public class PickFreindsActivity extends ListActivity {
 	}	
 	    
     private void updateUI(Intent intent) {
-    	String email = intent.getStringExtra(ContactListListenerService.PRESENCE_EMAIL_KEY);
-    	boolean available = intent.getBooleanExtra(ContactListListenerService.PRESENCE_TYPE_KEY, false);
-    	int priority = intent.getIntExtra(ContactListListenerService.PRESENCE_PRIORITY_KEY, 0);
-    	Presence.Mode mode = PresenceWrapper.getModeFromInteger(intent.getIntExtra(ContactListListenerService.PRESENCE_MODE_KEY, PresenceWrapper.AVAILABLE));
-    	mList = mContactsManager.getUpdatedList(mList, email, available, mode, priority);
+    	String email = intent.getStringExtra(Contact.EMAIL);
+    	ContactsManager.getInstance().updateContactList(email);
     	mAdapter.notifyDataSetChanged();
-    	Log.i(TAG, "updateUI for email: "+email+": New list: " + mList);
     }
 	
-	@Override
-	protected void onDestroy() {
-		super.onDestroy();
-		SynchronizedConnectionManager.getInstance().removeRosterListener(mMemberListUpdater);
-	}
-
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
 		ListAdapter la = getListAdapter();
-		@SuppressWarnings("unchecked")
-		HashMap<String, String> item = (HashMap<String, String>)la.getItem(position);
-		Toast.makeText(this, item.get(NAME_FIELD) + " selected", Toast.LENGTH_SHORT).show();
+		Contact contact = (Contact)la.getItem(position);
+		Toast.makeText(this, contact.getName() + " selected", Toast.LENGTH_SHORT).show();
 
 		Intent intent = new Intent(this, NotificationService.class);
-		intent.putExtra(getPackageName()+"."+EMAIL_FIELD, item.get(EMAIL_FIELD));
-		intent.putExtra(getPackageName()+"."+NAME_FIELD, item.get(NAME_FIELD));
+		intent.putExtra(getPackageName()+"."+EMAIL_FIELD, contact.getEmail());
+		intent.putExtra(getPackageName()+"."+NAME_FIELD, contact.getName());
 		startService(intent);
+//		v.setBackgroundColor(R.color.red);
+		
+		mAdapter.notifyDataSetChanged();
 		finish();
 	}
 
@@ -159,7 +125,7 @@ public class PickFreindsActivity extends ListActivity {
 			result = true;
 			break;
 		case R.id.menu_followed_freinds:
-			showDialog(FOLLOWED_DIALOG);
+			showDialog(SELECTED_DIALOG);
 			result = true;
 			break;
 		default:
@@ -210,7 +176,7 @@ public class PickFreindsActivity extends ListActivity {
 				}
 			});
 			break;
-		case FOLLOWED_DIALOG:
+		case SELECTED_DIALOG:
 			builder.setTitle("Monitored freinds").setMessage("1\n2\n3");
 			builder.setIcon(R.drawable.available_icon);
 			builder.setPositiveButton(R.string.ok_button, new DialogInterface.OnClickListener() {
@@ -234,7 +200,6 @@ public class PickFreindsActivity extends ListActivity {
 //			});
 			builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int whichButton) {
-					SynchronizedConnectionManager.getInstance().removeRosterListener(mMemberListUpdater);
 					new AsyncDisconnectionTask(PickFreindsActivity.this).execute((Void[])null);
 //					if (choices2[0]) {
 //						settings.edit().clear();

@@ -1,13 +1,13 @@
 package android.greentotalk;
 
 import java.util.Collection;
+
 import org.jivesoftware.smack.RosterListener;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.util.StringUtils;
 
 import android.app.Service;
 import android.content.Intent;
-import android.os.Handler;
 import android.os.IBinder;
 import android.util.Log;
 
@@ -57,11 +57,8 @@ public class ContactListListenerService extends Service implements RosterListene
 	@Override
 	public void presenceChanged(final Presence p) {
 		final Intent intent = new Intent(BROADCAST_ACTION);
-		intent.putExtra(PRESENCE_EMAIL_KEY, p.getFrom());
-		intent.putExtra(PRESENCE_TYPE_KEY, p.getType() == Presence.Type.available);
-		intent.putExtra(PRESENCE_MODE_KEY, PresenceWrapper.getIntegerFromMode(p));
-		intent.putExtra(PRESENCE_PRIORITY_KEY, p.getPriority());
-		Log.i(TAG, "sendUpdatesToUI: from="+p.getFrom()+", type="+p.getType()+", mode="+p.getMode()+", priority="+p.getPriority());
+		intent.putExtra(Contact.EMAIL, StringUtils.parseBareAddress(p.getFrom()));
+		Log.d(TAG, "sendUpdatesToUI: from="+p.getFrom()+", type="+p.getType()+", mode="+p.getMode()+", priority="+p.getPriority());
 		sendBroadcast(intent);
 	}
 

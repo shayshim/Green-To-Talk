@@ -41,7 +41,6 @@ ArrayList<Map<String, String>>> {
 
 	@Override
 	protected void onPostExecute(final ArrayList<Map<String, String>> success) {
-		mContext.InitializeUI();
 		if (mProgressDialog.isShowing()) {
 			mProgressDialog.dismiss();
 		}
@@ -50,7 +49,7 @@ ArrayList<Map<String, String>>> {
 	@Override
 	protected ArrayList<Map<String, String>> doInBackground(Void... v) {
 		Log.i("AsyncContactsSupplier", "get contacts info...");
-		mContactsManager.buildMapEmailToPresenceWrappers();
-		return mContactsManager.buildUIContacts();
+		assert(false);
+		return null;
 	}
 }
