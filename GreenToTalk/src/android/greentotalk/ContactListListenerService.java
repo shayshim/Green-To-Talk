@@ -12,8 +12,7 @@ import android.os.IBinder;
 import android.util.Log;
 
 public class ContactListListenerService extends Service implements RosterListener {
-
-	public static final String BROADCAST_ACTION = "com.websmithing.broadcasttest.displayevent";
+	
 	public static final String PRESENCE_TYPE_KEY = "presence_type";
 	public static final String PRESENCE_MODE_KEY = "presence_mode";
 	public static final String PRESENCE_EMAIL_KEY = "presence_email";
@@ -56,7 +55,7 @@ public class ContactListListenerService extends Service implements RosterListene
 
 	@Override
 	public void presenceChanged(final Presence p) {
-		final Intent intent = new Intent(BROADCAST_ACTION);
+		final Intent intent = new Intent(PickFreindsActivity.UPDATE_LIST_BROADCAST);
 		intent.putExtra(Contact.EMAIL, StringUtils.parseBareAddress(p.getFrom()));
 		Log.d(TAG, "sendUpdatesToUI: from="+p.getFrom()+", type="+p.getType()+", mode="+p.getMode()+", priority="+p.getPriority());
 		sendBroadcast(intent);

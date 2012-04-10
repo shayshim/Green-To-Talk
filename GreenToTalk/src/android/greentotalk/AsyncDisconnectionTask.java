@@ -36,7 +36,6 @@ public class AsyncDisconnectionTask extends AsyncTask<Void, Void, Void> {
 	
 	@Override
 	protected Void doInBackground(Void... params) {
-		// STOP GREEN SERVICE DOESN'T WORK 
 		SynchronizedConnectionManager.getInstance().disconnect();
 		return null;
 	}

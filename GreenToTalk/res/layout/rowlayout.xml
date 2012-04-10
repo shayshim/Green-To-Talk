@@ -2,33 +2,54 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent" 
-    android:orientation="vertical"            
+    android:orientation="vertical"
+    android:background="@color/white"         
     >
 	
 	<RelativeLayout 
         android:layout_width="wrap_content"
     	android:layout_height="wrap_content" 
-    	android:orientation="horizontal">
+    	android:orientation="horizontal"
+    	android:paddingTop="8dp"
+        android:paddingBottom="8dp">
+   
+	<LinearLayout 
+	    android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_alignParentLeft="true"
+        >
+	<CheckBox
+        android:id="@+id/select"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentLeft="true"
+        android:checked="false"
+        android:clickable="false"
+        android:focusable="false"
+        android:paddingRight="2dp"
+        />
+    
     <TextView
         android:id="@+id/name"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@+id/label1"
-        android:layout_alignParentLeft="true"
-        android:layout_marginRight="10dp"
-        android:textSize="35px"
-        android:paddingTop="5dp"
-        android:paddingBottom="5dp"> 
+        android:textSize="30px"
+        android:textColor="@color/black"
+      > 
     </TextView>
+    </LinearLayout>
     
     <TextView
         	android:id="@+id/mode"
         	android:layout_width="wrap_content"
         	android:layout_height="wrap_content"
         	android:text="@+id/label2"
-        	android:layout_weight="1"
         	android:layout_alignParentRight="true"
-        	android:textSize="25px" >
+        	android:textSize="25px" 
+        	android:paddingTop="10dp"
+        	android:textColor="@color/black">
     </TextView>
     </RelativeLayout>
     

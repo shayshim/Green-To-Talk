@@ -50,19 +50,25 @@ public class SigninActivity extends Activity {
 	private EditText mUsernameEdit;
 	private GreenToTalkApplication mApplication;
 	private SharedPreferences mSettings;
+	private SynchronizedConnectionManager mConnectionManager;
+	private ContactsManager mContactsManager;
+	
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
+		mConnectionManager = SynchronizedConnectionManager.getInstance();
+		mContactsManager = ContactsManager.getInstance();
+		mContactsManager.clearContacts();
 		InitializeUI();
 	}
 
 	//used in onCreate() and onConfigurationChanged() to set up the UI elements
 	public void InitializeUI() {
 		mApplication = (GreenToTalkApplication)getApplication();
-		if (SynchronizedConnectionManager.getInstance().isConnected()) {
+		if (mConnectionManager.isConnected()) {
 			// go to the pick friend activity
 			pickFreindsActivity();
 			finish();
@@ -82,8 +88,8 @@ public class SigninActivity extends Activity {
 		mUsernameEdit.setText(mUsername);
 		mPasswordEdit.setText(mPassword);
 
-		Button pickContact = (Button)findViewById(R.id.ok_button);
-		pickContact.setOnClickListener(new OnClickListener() {
+		Button okLogin = (Button)findViewById(R.id.ok_button);
+		okLogin.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				handleLogin();
 			}

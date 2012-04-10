@@ -16,6 +16,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
+import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -29,11 +30,12 @@ public class NotificationService extends Service implements RosterListener {
 	private SharedPreferences mSavedContactsToFollow;
 	private Map<String, String> mFollowedMembers;
 	private SynchronizedConnectionManager mConnectionMgr;
+	private Handler mHandler;
 
 	@SuppressWarnings("unchecked")
 	@Override
 	public void onCreate() {
-
+		mHandler = new Handler(); // created in the main thread
 		GreenToTalkApplication application= (GreenToTalkApplication)getApplication();
 		mSettings = PreferenceManager.getDefaultSharedPreferences(application);
 		mSavedContactsToFollow = getSharedPreferences(SAVED_CONTACT_TO_FOLLOW, MODE_PRIVATE);
@@ -63,8 +65,14 @@ public class NotificationService extends Service implements RosterListener {
 				}
 			}
 			else {
-				mFollowedMembers.put(intent.getStringExtra(getPackageName()+"."+PickFreindsActivity.EMAIL_FIELD), 
-						intent.getStringExtra(getPackageName()+"."+PickFreindsActivity.NAME_FIELD));
+				boolean select = intent.getBooleanExtra(PickFreindsActivity.SELECT_CONTACT, false);
+				if (select) {
+					mFollowedMembers.put(intent.getStringExtra(PickFreindsActivity.EMAIL_FIELD), 
+						intent.getStringExtra(PickFreindsActivity.NAME_FIELD));
+				}
+				else {
+					mFollowedMembers.remove(intent.getStringExtra(PickFreindsActivity.EMAIL_FIELD));
+				}
 			}
 		}
 		// We want this service to continue running until it is explicitly stopped, so return sticky.
@@ -88,12 +96,12 @@ public class NotificationService extends Service implements RosterListener {
 	private void makeAndroidNotification(String name) {
 		String presenceStr = "available";
 		String ns = Context.NOTIFICATION_SERVICE;
-		NotificationManager mNotificationManager = (NotificationManager) getSystemService(ns);
+		final NotificationManager notificationManager = (NotificationManager) getSystemService(ns);
 		int icon = R.drawable.logo2;
 		CharSequence tickerText = name + " is " + presenceStr;
 		long when = System.currentTimeMillis();
 
-		Notification notification = new Notification(icon, tickerText, when);
+		final Notification notification = new Notification(icon, tickerText, when);
 
 		Context context = getApplicationContext();
 		CharSequence contentTitle = "Green To Talk";
@@ -105,7 +113,12 @@ public class NotificationService extends Service implements RosterListener {
 		notification.defaults |= Notification.DEFAULT_SOUND;
 		notification.defaults |= Notification.DEFAULT_VIBRATE;
 		notification.flags = Notification.FLAG_AUTO_CANCEL;
-		mNotificationManager.notify(GREEN_NOTIFICATION_ID, notification);
+		mHandler.post(new Runnable() {
+			@Override
+			public void run() {
+				notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
+			}
+		});
 	}
 
 	@Override
@@ -136,6 +149,10 @@ public class NotificationService extends Service implements RosterListener {
 					(isDndAsAvailable() && presence.getMode() == Presence.Mode.dnd))) {
 				makeAndroidNotification(mFollowedMembers.get(email));
 				mFollowedMembers.remove(email);
+				final Intent intent = new Intent(PickFreindsActivity.UPDATE_LIST_BROADCAST);
+				intent.putExtra(PickFreindsActivity.SELECT_CONTACT, true);
+				intent.putExtra(Contact.EMAIL, email);
+				sendBroadcast(intent);
 			}
 		}
 		if (mFollowedMembers.isEmpty()) {

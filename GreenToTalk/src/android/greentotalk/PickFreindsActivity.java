@@ -19,40 +19,52 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.Toast;
 
-
-/*
- * 1. Need to implement array adaptor that works with contacts
- * 2. Integrate it here
- * 3. Check thread safety of mList
- * 4. Check relevance of async contact supplier
- * 
+/**
+ * Need to care for synchronization between all threads. For example while disconnection
+ * there was a crash because xmpp connection was disconnected and ContactsManager.updateContactList
+ * tried to grab presence from nulled roster.
+ * @author shay
+ *
  */
+
 public class PickFreindsActivity extends ListActivity {
 
 	private static final String TAG = "PickFreindsActivity";
-	public static final String NAME_FIELD = "name";
-	public static final String MODE_FIELD = "mode";
-	public static final String EMAIL_FIELD = "email";
+	public static final String NAME_FIELD = "android.greentotalk.name";
+	public static final String MODE_FIELD = "android.greentotalk.mode";
+	public static final String EMAIL_FIELD = "android.greentotalk.email";
+	public static final String UPDATE_LIST_BROADCAST = "android.greentotalk.update_list_broadcast";
 	private static final int DISCONNECT_DIALOG = 0;
 	private static final int SETTINGS_DIALOG = 1;
 	private static final int ABOUT_DIALOG = 2;
 	private static final int SELECTED_DIALOG = 3;
+	public static final String SELECT_CONTACT = "android.greentotalk.select_contact";
 	private ContactsArrayAdapter mAdapter;
+	private ContactsManager mContactsManager;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		Log.i(TAG, "onCreate...");
-		ContactsManager.getInstance().updateContactList();
+		mContactsManager = ContactsManager.getInstance();
+		mContactsManager.updateContactList();
 		mAdapter = new ContactsArrayAdapter(this);
 		ListView lv = getListView();
 		lv.setTextFilterEnabled(true);
 		setListAdapter(mAdapter);		
 		setContentView(R.layout.contact_list);
+		
+		Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
+		finishSelectContacts.setOnClickListener(new OnClickListener() {
+			public void onClick(View v) {
+				finish();
+			}
+		});
 	}
 	
 	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
@@ -65,7 +77,7 @@ public class PickFreindsActivity extends ListActivity {
 	@Override
 	public void onResume() {
 		super.onResume();		
-		registerReceiver(broadcastReceiver, new IntentFilter(ContactListListenerService.BROADCAST_ACTION));
+		registerReceiver(broadcastReceiver, new IntentFilter(UPDATE_LIST_BROADCAST));
 		startService(new Intent(this, ContactListListenerService.class));
 	}
 	
@@ -78,7 +90,13 @@ public class PickFreindsActivity extends ListActivity {
 	    
     private void updateUI(Intent intent) {
     	String email = intent.getStringExtra(Contact.EMAIL);
-    	ContactsManager.getInstance().updateContactList(email);
+    	boolean unselect = intent.getBooleanExtra(SELECT_CONTACT, false);
+    	if (unselect) {
+    		mContactsManager.setSelected(email, false);
+    	}
+    	else {
+    		mContactsManager.updateContactList(email);
+    	}
     	mAdapter.notifyDataSetChanged();
     }
 	
@@ -87,16 +105,15 @@ public class PickFreindsActivity extends ListActivity {
 		super.onListItemClick(l, v, position, id);
 		ListAdapter la = getListAdapter();
 		Contact contact = (Contact)la.getItem(position);
-		Toast.makeText(this, contact.getName() + " selected", Toast.LENGTH_SHORT).show();
-
+//		Toast.makeText(this, "Watching for "+contact.getName() + "to show up", Toast.LENGTH_SHORT).show();
+		contact.setSelected(!contact.isSelected());
 		Intent intent = new Intent(this, NotificationService.class);
-		intent.putExtra(getPackageName()+"."+EMAIL_FIELD, contact.getEmail());
-		intent.putExtra(getPackageName()+"."+NAME_FIELD, contact.getName());
+		intent.putExtra(EMAIL_FIELD, contact.getEmail());
+		intent.putExtra(NAME_FIELD, contact.getName());
+		intent.putExtra(SELECT_CONTACT, contact.isSelected());
 		startService(intent);
-//		v.setBackgroundColor(R.color.red);
-		
 		mAdapter.notifyDataSetChanged();
-		finish();
+//		finish();
 	}
 
 	@Override

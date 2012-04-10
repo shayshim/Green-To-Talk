@@ -8,9 +8,7 @@ import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.util.Log;
 
-public class AsyncContactsSupplier extends AsyncTask<Void, 
-Void, 
-ArrayList<Map<String, String>>> {
+public class AsyncContactsSupplier extends AsyncTask<Void, Void, Void> {
 	private ProgressDialog mProgressDialog;
 	private final PickFreindsActivity mContext;
 	private ContactsManager mContactsManager;
@@ -33,23 +31,24 @@ ArrayList<Map<String, String>>> {
 		});
 	}
 
-	
 	@Override
 	protected void onPreExecute() {
 		mProgressDialog.show();
 	}
 
 	@Override
-	protected void onPostExecute(final ArrayList<Map<String, String>> success) {
+	protected void onPostExecute(Void v) {
 		if (mProgressDialog.isShowing()) {
 			mProgressDialog.dismiss();
 		}
+//		mContext.initializeUI();
+//		mContext.setContactsListsnerService();
 	}
 
 	@Override
-	protected ArrayList<Map<String, String>> doInBackground(Void... v) {
+	protected Void doInBackground(Void... v) {
 		Log.i("AsyncContactsSupplier", "get contacts info...");
-		assert(false);
+		mContactsManager.updateContactList();
 		return null;
 	}
 }

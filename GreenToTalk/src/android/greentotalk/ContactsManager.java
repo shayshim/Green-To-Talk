@@ -18,6 +18,7 @@ public class ContactsManager {
 	private static ContactsManager instance; 
 	private List<Contact> mContacts;
 	private Set<String> mEmails;
+	private SynchronizedConnectionManager mConnectionManager;
 	
 	public synchronized static ContactsManager getInstance() {
 		if (instance == null) {
@@ -29,35 +30,19 @@ public class ContactsManager {
 	private ContactsManager() {
 		mContacts = new ArrayList<Contact>();
 		mEmails = new HashSet<String>();
-	}
-	
-	private void buildContactList() {
-		Roster roster = SynchronizedConnectionManager.getInstance().getRoster();
-		for (RosterEntry entry: roster.getEntries()) {
-			String email = entry.getUser();
-			if (! StringUtils.parseServer(email).equals(SigninActivity.GMAIL_DOMAIN))
-				continue;
-			if (email.equals(SynchronizedConnectionManager.getInstance().getUsername()))
-				continue;
-			assert(roster.getPresence(email)!=null);
-			Contact contact = new Contact(roster.getPresence(email));
-			contact.setName(entry.getName());
-			mContacts.add(contact);
-		}
-		Log.i(TAG, "buildContactList: "+mContacts.toString());
-		Collections.sort(mContacts);
+		mConnectionManager = SynchronizedConnectionManager.getInstance();
 	}
 	
 	public void updateContactList() {
-		Roster roster = SynchronizedConnectionManager.getInstance().getRoster();
-		for (RosterEntry entry: roster.getEntries()) {
+		for (RosterEntry entry: mConnectionManager.getEntries()) {
 			String email = entry.getUser();
 			if (! StringUtils.parseServer(email).equals(SigninActivity.GMAIL_DOMAIN))
 				continue;
-			if (email.equals(SynchronizedConnectionManager.getInstance().getUsername()))
+			if (email.equals(mConnectionManager.getUsername()))
 				continue;
-			assert(roster.getPresence(email)!=null);
-			Presence presence = roster.getPresence(email);
+			Presence presence = mConnectionManager.getPresence(email);
+			if (presence == null)
+				return; // if disconnection happened we might get null, and in such case this method execution can stop
 			Contact contact;
 			if (mEmails.contains(email)) {
 				contact = mContacts.get(getContactPosition(email));
@@ -70,7 +55,7 @@ public class ContactsManager {
 				mEmails.add(email);
 			}
 		}
-		Log.i(TAG, "buildContactList: "+mContacts.toString());
+		Log.i(TAG, "updateContactList: "+mContacts.toString());
 		Collections.sort(mContacts);
 	}
 
@@ -87,8 +72,9 @@ public class ContactsManager {
 		assert(email!=null);
 		if (email.equals(SynchronizedConnectionManager.getInstance().getUsername()))
 			return;
-		Roster roster = SynchronizedConnectionManager.getInstance().getRoster();
-		Presence presence = roster.getPresence(email);
+		Presence presence = mConnectionManager.getPresence(email);
+		if (presence == null)
+			return; // if disconnection happened we might get null, and in such case this method execution can stop
 		int position = getContactPosition(email);
 		Contact contact;
 		if (position > -1) {
@@ -125,5 +111,18 @@ public class ContactsManager {
 	public String getStringModeAt(int position) {
 		assert(position>-1 && position<mContacts.size());
 		return mContacts.get(position).getStringMode();
+	}
+
+	public boolean isSelectedAt(int position) {
+		return mContacts.get(position).isSelected();
+	}
+
+	public void setSelected(String email, boolean selected) {
+		mContacts.get(getContactPosition(email)).setSelected(selected);
+	}
+
+	public void clearContacts() {
+		mEmails.clear();
+		mContacts.clear();
 	}
 }

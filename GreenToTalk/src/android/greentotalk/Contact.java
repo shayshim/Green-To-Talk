@@ -21,7 +21,6 @@ package android.greentotalk;
 
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.util.StringUtils;
-import org.jivesoftware.smackx.pubsub.PresenceState;
 
 import android.os.Parcel;
 import android.os.Parcelable;
