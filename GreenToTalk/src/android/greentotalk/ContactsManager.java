@@ -144,7 +144,7 @@ public class ContactsManager {
 		else {
 			edit.remove(email);
 		}
-		edit.commit();
+		edit.apply();
 	}
 
 	public void clearContacts() {
@@ -181,7 +181,7 @@ public class ContactsManager {
 		for (String email: emails) {
 			editor.putBoolean(email, true);
 		}
-		editor.commit();
+		editor.apply();
 	}
 
 	public void setOppositeSelection(Contact contact) {

@@ -129,7 +129,7 @@ public class SigninActivity extends Activity {
 				SharedPreferences.Editor edit = mSettings.edit();
 				edit.putString(GreenToTalkApplication.ACCOUNT_USERNAME_KEY, mUsername);
 				edit.putString(GreenToTalkApplication.ACCOUNT_PASSWORD_KEY, mPassword);
-				edit.commit();
+				edit.apply();
 			}
 			pickFreindsActivity();
 		} else {

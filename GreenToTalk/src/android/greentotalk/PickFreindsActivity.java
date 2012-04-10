@@ -215,7 +215,7 @@ public class PickFreindsActivity extends ListActivity {
 					new AsyncDisconnectionTask(PickFreindsActivity.this).execute((Void[])null);
 					//					if (choices2[0]) {
 					//						settings.edit().clear();
-					//						settings.edit().commit();
+					//						settings.edit().apply();
 					//					}
 					dialog.dismiss();
 				}
@@ -241,7 +241,7 @@ public class PickFreindsActivity extends ListActivity {
 		@Override
 		public void onClick(DialogInterface dialog, int which, final boolean isChecked) {
 			mEditor.putBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, isChecked);
-			mEditor.commit();
+			mEditor.apply();
 		}
 	}
 }
