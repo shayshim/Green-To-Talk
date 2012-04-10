@@ -37,7 +37,6 @@ public class Contact implements Parcelable, Comparable<Contact>{
 	private String mFrom;
 	private String mName;
 	private int mMode;
-	private boolean mSelected;
 	
 	public static String getStirngModeFromInt(int intmode) {
 		if (intmode == AVAILABLE)
@@ -59,14 +58,12 @@ public class Contact implements Parcelable, Comparable<Contact>{
 		setFrom(p.getFrom());
 		setName(getEmail());
 		setMode(p.getType(), p.getMode());
-		setSelected(false);
 	}
 	
 	public Contact(Parcel in) {
 		mFrom = in.readString();
 		mName = in.readString();
 		mMode = in.readInt();
-		mSelected = false;
 	}
 	
 	public void setFrom(String from) {
@@ -76,10 +73,6 @@ public class Contact implements Parcelable, Comparable<Contact>{
 	public void setName(String name) {
 		if (name!=null)
 			mName = name;
-	}
-	
-	public void setSelected(boolean selected) {
-		mSelected = selected;
 	}
 	
 	public void setMode(Presence.Type type, Presence.Mode mode) {
@@ -106,10 +99,6 @@ public class Contact implements Parcelable, Comparable<Contact>{
 	
 	public String getName() {
 		return mName;
-	}
-	
-	public boolean isSelected() {
-		return mSelected;
 	}
 	
 	public int getMode() {
@@ -140,7 +129,7 @@ public class Contact implements Parcelable, Comparable<Contact>{
     
     @Override
     public String toString() {
-    	return mName+", "+mFrom+", "+getStirngModeFromInt(mMode)+", "+", selected is "+mSelected;
+    	return mName+", "+mFrom+", "+getStirngModeFromInt(mMode);
     }
 
 	public void setMode(int mode) {

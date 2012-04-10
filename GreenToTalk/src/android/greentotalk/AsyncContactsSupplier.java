@@ -48,7 +48,6 @@ public class AsyncContactsSupplier extends AsyncTask<Void, Void, Void> {
 	@Override
 	protected Void doInBackground(Void... v) {
 		Log.i("AsyncContactsSupplier", "get contacts info...");
-		mContactsManager.updateContactList();
 		return null;
 	}
 }

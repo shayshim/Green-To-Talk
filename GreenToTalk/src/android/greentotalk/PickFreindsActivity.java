@@ -24,14 +24,6 @@ import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
 
-/**
- * Need to care for synchronization between all threads. For example while disconnection
- * there was a crash because xmpp connection was disconnected and ContactsManager.updateContactList
- * tried to grab presence from nulled roster.
- * @author shay
- *
- */
-
 public class PickFreindsActivity extends ListActivity {
 
 	private static final String TAG = "PickFreindsActivity";
@@ -39,81 +31,84 @@ public class PickFreindsActivity extends ListActivity {
 	public static final String MODE_FIELD = "android.greentotalk.mode";
 	public static final String EMAIL_FIELD = "android.greentotalk.email";
 	public static final String UPDATE_LIST_BROADCAST = "android.greentotalk.update_list_broadcast";
+	public static final String START_FOR_SAVED_CONTACTS = "android.greentotalk.START_FOR_SAVED_CONTACTS";
 	private static final int DISCONNECT_DIALOG = 0;
 	private static final int SETTINGS_DIALOG = 1;
 	private static final int ABOUT_DIALOG = 2;
 	private static final int SELECTED_DIALOG = 3;
-	public static final String SELECT_CONTACT = "android.greentotalk.select_contact";
 	private ContactsArrayAdapter mAdapter;
 	private ContactsManager mContactsManager;
-	
+
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		Log.i(TAG, "onCreate...");
-		mContactsManager = ContactsManager.getInstance();
+		mContactsManager = new ContactsManager(getSharedPreferences(ContactsManager.SAVED_SELECTED_CONTACTS, MODE_PRIVATE));
 		mContactsManager.updateContactList();
 		mAdapter = new ContactsArrayAdapter(this);
 		ListView lv = getListView();
 		lv.setTextFilterEnabled(true);
 		setListAdapter(mAdapter);		
 		setContentView(R.layout.contact_list);
-		
 		Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
 		finishSelectContacts.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
+				mContactsManager.saveSelectedContacts();
+				mContactsManager.sendSelectedContactsToNotificationService(PickFreindsActivity.this);
 				finish();
 			}
 		});
+		if (!NotificationService.isServiceRunning())
+			mContactsManager.sendSelectedContactsToNotificationService(this);
 	}
 	
+	public ContactsManager getContactsManager() {
+		return mContactsManager;
+	}
+
 	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-        	updateUI(intent);
-        }
-    };
-	
+		@Override
+		public void onReceive(Context context, Intent intent) {
+			updateUI(intent);
+		}
+	};
+
 	@Override
 	public void onResume() {
 		super.onResume();		
 		registerReceiver(broadcastReceiver, new IntentFilter(UPDATE_LIST_BROADCAST));
 		startService(new Intent(this, ContactListListenerService.class));
 	}
-	
+
 	@Override
 	public void onPause() {
 		super.onPause();
 		stopService(new Intent(this, ContactListListenerService.class));
 		unregisterReceiver(broadcastReceiver);
 	}	
-	    
-    private void updateUI(Intent intent) {
-    	String email = intent.getStringExtra(Contact.EMAIL);
-    	boolean unselect = intent.getBooleanExtra(SELECT_CONTACT, false);
-    	if (unselect) {
-    		mContactsManager.setSelected(email, false);
-    	}
-    	else {
-    		mContactsManager.updateContactList(email);
-    	}
-    	mAdapter.notifyDataSetChanged();
-    }
-	
+
+	private void updateUI(Intent intent) {
+		String email = intent.getStringExtra(Contact.EMAIL);
+		Log.i(TAG,"--->updateUI GOT INTENT FOR "+email);
+		boolean unselect = intent.getBooleanExtra(NotificationService.UNSELECT_CONTACT, false);
+		if (unselect) {
+			// got notification, delete entry from file
+			mContactsManager.setSelectedAndSave(email, false);
+			Log.i(TAG,"--->SAVE UNSELECT FOR "+email);
+		}
+		else {
+			mContactsManager.updateContactList(email);
+		}
+		mAdapter.notifyDataSetChanged();
+	}
+
 	@Override
 	protected void onListItemClick(ListView l, View v, int position, long id) {
 		super.onListItemClick(l, v, position, id);
 		ListAdapter la = getListAdapter();
 		Contact contact = (Contact)la.getItem(position);
-//		Toast.makeText(this, "Watching for "+contact.getName() + "to show up", Toast.LENGTH_SHORT).show();
-		contact.setSelected(!contact.isSelected());
-		Intent intent = new Intent(this, NotificationService.class);
-		intent.putExtra(EMAIL_FIELD, contact.getEmail());
-		intent.putExtra(NAME_FIELD, contact.getName());
-		intent.putExtra(SELECT_CONTACT, contact.isSelected());
-		startService(intent);
+		mContactsManager.setOppositeSelection(contact);
 		mAdapter.notifyDataSetChanged();
-//		finish();
 	}
 
 	@Override
@@ -206,22 +201,22 @@ public class PickFreindsActivity extends ListActivity {
 			title = "Disconnect";
 			builder.setTitle(title).setMessage("Are you sure you want to disconnect?");
 			builder.setIcon(R.drawable.available_icon);
-//			final String[] strings2 = new String[]{"Also delete username and password and restore default preferences"};
-//			final boolean [] choices2 = {false};
-//			builder.setMultiChoiceItems(strings2, choices2, new OnMultiChoiceClickListener() {
-//				@Override
-//				public void onClick(DialogInterface dialog, int which,
-//						boolean isChecked) {
-//					choices2[0] = isChecked;
-//				}
-//			});
+			//			final String[] strings2 = new String[]{"Also delete username and password and restore default preferences"};
+			//			final boolean [] choices2 = {false};
+			//			builder.setMultiChoiceItems(strings2, choices2, new OnMultiChoiceClickListener() {
+			//				@Override
+			//				public void onClick(DialogInterface dialog, int which,
+			//						boolean isChecked) {
+			//					choices2[0] = isChecked;
+			//				}
+			//			});
 			builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int whichButton) {
 					new AsyncDisconnectionTask(PickFreindsActivity.this).execute((Void[])null);
-//					if (choices2[0]) {
-//						settings.edit().clear();
-//						settings.edit().commit();
-//					}
+					//					if (choices2[0]) {
+					//						settings.edit().clear();
+					//						settings.edit().commit();
+					//					}
 					dialog.dismiss();
 				}
 			});

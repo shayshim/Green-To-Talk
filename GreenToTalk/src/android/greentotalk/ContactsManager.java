@@ -2,35 +2,40 @@ package android.greentotalk;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
-import org.jivesoftware.smack.Roster;
 import org.jivesoftware.smack.RosterEntry;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.util.StringUtils;
 
+import android.content.Context;
+import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+import android.os.Bundle;
 import android.util.Log;
 
 public class ContactsManager {
+	
+	private SharedPreferences mSavedSelectedContacts;
+	public static final String SAVED_SELECTED_CONTACTS = "android.greentotalk.SAVED_SELECTED_CONTACTS";
 	private static final String TAG = "ContactManager";
-	private static ContactsManager instance; 
-	private List<Contact> mContacts;
-	private Set<String> mEmails;
+	private List<Contact> mContactsList;
+	private Map<String, Contact> mContactsMap;
+	private Map<String, Boolean> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionManager;
 	
-	public synchronized static ContactsManager getInstance() {
-		if (instance == null) {
-			instance = new ContactsManager();
-		}
-		return instance;
-	}
 	
-	private ContactsManager() {
-		mContacts = new ArrayList<Contact>();
-		mEmails = new HashSet<String>();
+	@SuppressWarnings("unchecked")
+	public ContactsManager(SharedPreferences savedSelectedContacts) {
+		mContactsList = new ArrayList<Contact>();
+		mContactsMap = new HashMap<String, Contact>();
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
+		mSavedSelectedContacts = savedSelectedContacts;
+		mSelectedContacts = (Map<String, Boolean>) mSavedSelectedContacts.getAll();
 	}
 	
 	public void updateContactList() {
@@ -44,25 +49,25 @@ public class ContactsManager {
 			if (presence == null)
 				return; // if disconnection happened we might get null, and in such case this method execution can stop
 			Contact contact;
-			if (mEmails.contains(email)) {
-				contact = mContacts.get(getContactPosition(email));
+			if (mContactsMap.containsKey(email)) {
+				contact = mContactsList.get(getContactPosition(email));
 				contact.update(presence);
 			}
 			else {
 				contact = new Contact(presence);
 				contact.setName(entry.getName());
-				mContacts.add(contact);
-				mEmails.add(email);
+				mContactsList.add(contact);
+				mContactsMap.put(email, contact);
 			}
 		}
-		Log.i(TAG, "updateContactList: "+mContacts.toString());
-		Collections.sort(mContacts);
+		Log.i(TAG, "updateContactList: "+mContactsList.toString());
+		Collections.sort(mContactsList);
 	}
 
 	int getContactPosition(String email) {
-		int size = mContacts.size();
+		int size = mContactsList.size();
 		for (int i=0; i<size; ++i) {
-			if (mContacts.get(i).getEmail().equals(email))
+			if (mContactsList.get(i).getEmail().equals(email))
 				return i;
 		}
 		return -1;
@@ -78,51 +83,108 @@ public class ContactsManager {
 		int position = getContactPosition(email);
 		Contact contact;
 		if (position > -1) {
-			contact = mContacts.get(position);
+			contact = mContactsList.get(position);
 			contact.update(presence);
 		}
 		else {
 			contact = new Contact(presence);
-			mContacts.add(contact);
+			mContactsList.add(contact);
 		}
-		Collections.sort(mContacts);
+		Collections.sort(mContactsList);
 		Log.i(TAG, "updateUI for: "+contact);
 	}
 	
 	public List<Contact> getContactList() {
-		return mContacts;
+		return mContactsList;
 	}
 	
 	public String getNameAt(int position) {
-		assert(position>-1 && position<mContacts.size());
-		return mContacts.get(position).getName();
+		assert(position>-1 && position<mContactsList.size());
+		return mContactsList.get(position).getName();
 	}
 	
 	public String getEmailAt(int position) {
-		assert(position>-1 && position<mContacts.size());
-		return mContacts.get(position).getEmail();
+		assert(position>-1 && position<mContactsList.size());
+		return mContactsList.get(position).getEmail();
 	}
 	
 	public int getModeAt(int position) {
-		assert(position>-1 && position<mContacts.size());
-		return mContacts.get(position).getMode();
+		assert(position>-1 && position<mContactsList.size());
+		return mContactsList.get(position).getMode();
 	}
 	
 	public String getStringModeAt(int position) {
-		assert(position>-1 && position<mContacts.size());
-		return mContacts.get(position).getStringMode();
+		assert(position>-1 && position<mContactsList.size());
+		return mContactsList.get(position).getStringMode();
 	}
 
 	public boolean isSelectedAt(int position) {
-		return mContacts.get(position).isSelected();
+		return mSelectedContacts.containsKey(mContactsList.get(position).getEmail());
 	}
 
 	public void setSelected(String email, boolean selected) {
-		mContacts.get(getContactPosition(email)).setSelected(selected);
+		if (selected) {
+			mSelectedContacts.put(email, true);
+		}
+		else {
+			mSelectedContacts.remove(email);
+		}
+	}
+	
+	public String getName(String email) {
+		return mContactsMap.get(email).getName();
+	}
+	
+	public void setSelectedAndSave(String email, boolean selected) {
+		setSelected(email, selected);
+		Editor edit = mSavedSelectedContacts.edit();
+		if (selected) {
+			edit.putBoolean(email, true);
+		}
+		else {
+			edit.remove(email);
+		}
+		edit.commit();
 	}
 
 	public void clearContacts() {
-		mEmails.clear();
-		mContacts.clear();
+		mContactsMap.clear();
+		mContactsList.clear();
+	}
+	
+	public void sendSelectedContactsToNotificationService(Context context) {
+		Bundle bundle = new Bundle();
+		if (!mSelectedContacts.isEmpty()) {
+			Intent intent = new Intent(context, NotificationService.class);
+			Set<String> emails = mSelectedContacts.keySet();
+			for (String email: emails) {
+				bundle.putString(email, mContactsMap.get(email).getName());
+			}
+			intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
+			context.startService(intent);
+		}
+	}
+
+	public void setOppositeSelection(String email) {
+		if (mSelectedContacts.containsKey(email)) {
+			mSelectedContacts.remove(email);
+		}
+		else {
+			mSelectedContacts.put(email, true);
+		}
+	}
+
+	public void saveSelectedContacts() {
+		Editor editor = mSavedSelectedContacts.edit();
+		editor.clear();
+		Set<String> emails = mSelectedContacts.keySet();
+		for (String email: emails) {
+			editor.putBoolean(email, true);
+		}
+		editor.commit();
+	}
+
+	public void setOppositeSelection(Contact contact) {
+		setOppositeSelection(contact.getEmail());
 	}
 }

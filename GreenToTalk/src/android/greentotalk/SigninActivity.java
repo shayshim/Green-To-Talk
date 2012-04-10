@@ -38,7 +38,6 @@ public class SigninActivity extends Activity {
 	public static final String PARAM_USERNAME = "username";
 	public static final String GMAIL_DOMAIN = "gmail.com";
 	public static final String USER_DISCONNECTED = "user_disconnected";
-	public static final String ONLY_START_SERVICE = "only_start_service";
 	private static final String TAG = "AuthenticatorActivity";
 
 	/** for posting authentication attempts back to UI thread */
@@ -51,7 +50,6 @@ public class SigninActivity extends Activity {
 	private GreenToTalkApplication mApplication;
 	private SharedPreferences mSettings;
 	private SynchronizedConnectionManager mConnectionManager;
-	private ContactsManager mContactsManager;
 	
 	/**
 	 * {@inheritDoc}
@@ -60,13 +58,11 @@ public class SigninActivity extends Activity {
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
-		mContactsManager = ContactsManager.getInstance();
-		mContactsManager.clearContacts();
-		InitializeUI();
+		initializeUI();
 	}
 
 	//used in onCreate() and onConfigurationChanged() to set up the UI elements
-	public void InitializeUI() {
+	public void initializeUI() {
 		mApplication = (GreenToTalkApplication)getApplication();
 		if (mConnectionManager.isConnected()) {
 			// go to the pick friend activity
@@ -136,9 +132,6 @@ public class SigninActivity extends Activity {
 				edit.commit();
 			}
 			pickFreindsActivity();
-			Intent intent = new Intent(this, NotificationService.class);
-			intent.putExtra(ONLY_START_SERVICE, true);
-			startService(intent);
 		} else {
 			Log.e(TAG, "onAuthenticationResult: failed to authenticate");
 			if (!mApplication.isAccountConfigured() || isNewUser()) {

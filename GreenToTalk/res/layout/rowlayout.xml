@@ -3,7 +3,6 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent" 
     android:orientation="vertical"
-    android:background="@color/white"         
     >
 	
 	<RelativeLayout 
@@ -36,7 +35,6 @@
         android:layout_height="wrap_content"
         android:text="@+id/label1"
         android:textSize="30px"
-        android:textColor="@color/black"
       > 
     </TextView>
     </LinearLayout>
@@ -49,7 +47,7 @@
         	android:layout_alignParentRight="true"
         	android:textSize="25px" 
         	android:paddingTop="10dp"
-        	android:textColor="@color/black">
+        	>
     </TextView>
     </RelativeLayout>
     
