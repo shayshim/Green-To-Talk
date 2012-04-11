@@ -58,7 +58,7 @@ public class PickFreindsActivity extends ListActivity {
 				finish();
 			}
 		});
-		if (!NotificationService.isServiceRunning())
+		if (!NotificationService.isServiceRunning()  &&  mContactsManager.countSavedSelectedContacts() > 0)
 			mContactsManager.sendSelectedContactsToNotificationService(this);
 	}
 	
@@ -89,12 +89,9 @@ public class PickFreindsActivity extends ListActivity {
 
 	private void updateUI(Intent intent) {
 		String email = intent.getStringExtra(Contact.EMAIL);
-		Log.i(TAG,"--->updateUI GOT INTENT FOR "+email);
 		boolean unselect = intent.getBooleanExtra(NotificationService.UNSELECT_CONTACT, false);
 		if (unselect) {
-			// got notification, delete entry from file
-			mContactsManager.setSelectedAndSave(email, false);
-			Log.i(TAG,"--->SAVE UNSELECT FOR "+email);
+			mContactsManager.setSelected(email, false);
 		}
 		else {
 			mContactsManager.updateContactList(email);
@@ -212,6 +209,7 @@ public class PickFreindsActivity extends ListActivity {
 			//			});
 			builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int whichButton) {
+					mContactsManager.deleteSavedSelectedContacts();
 					new AsyncDisconnectionTask(PickFreindsActivity.this).execute((Void[])null);
 					//					if (choices2[0]) {
 					//						settings.edit().clear();

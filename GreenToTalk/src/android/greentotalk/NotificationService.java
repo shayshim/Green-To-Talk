@@ -25,17 +25,17 @@ import android.util.Log;
 
 public class NotificationService extends Service implements RosterListener {
 
-	private static final int GREEN_NOTIFICATION_ID = 1;
+	private static final int ONGOING_NOTIFICATION = 1;
+	private static final int GREEN_NOTIFICATION_ID = 2;
 	public static final String UNSELECT_CONTACT = "android.greentotalk.UNSELECT_CONTACT";
 	private static final String TAG = "NotificationService";
 	private Map<String, String> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionMgr;
 	private Handler mHandler;
 	private SharedPreferences mSettings;
-	private static final int ONGOING_NOTIFICATION = 1;
 	private static boolean running = false;
 	private SharedPreferences mSavedSelectedContacts;
-	
+
 	@Override
 	public void onCreate() {
 		mHandler = new Handler(); // created in the main thread
@@ -43,13 +43,7 @@ public class NotificationService extends Service implements RosterListener {
 		GreenToTalkApplication application= (GreenToTalkApplication)getApplication();
 		mSettings = PreferenceManager.getDefaultSharedPreferences(application);
 		mConnectionMgr = SynchronizedConnectionManager.getInstance();
-		//		Notification notification = new Notification(R.drawable.binoculas_watching, "Start watching",
-		//		        System.currentTimeMillis());
-		//		Intent notificationIntent = new Intent(this, GreenActivity.class);
-		//		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
-		//		notification.setLatestEventInfo(this, "Green To Talk",
-		//		        "Watching for people ... to be available", pendingIntent);
-		//		startForeground(ONGOING_NOTIFICATION, notification);
+		mSelectedContacts = new HashMap<String, String>(); // need even empty map before adding roster listener
 		mConnectionMgr.addRosterListener(this);
 		running = true;
 	}
@@ -66,11 +60,38 @@ public class NotificationService extends Service implements RosterListener {
 			}
 			if (selectedContacts.isEmpty()) {
 				stopSelf();
+				return START_NOT_STICKY;
 			}
-			mSelectedContacts = selectedContacts;
+			synchronized (this) {
+				mSelectedContacts = selectedContacts;
+			}
+			Notification notification = getForegroundNotification(getNamesString(null), true);
+			startForeground(ONGOING_NOTIFICATION, notification);
 		}
 		// We want this service to continue running until it is explicitly stopped, so return sticky.
 		return START_NOT_STICKY;
+	}
+
+	private Notification getForegroundNotification(String names, boolean isStarted) {
+		String operation = (isStarted)? "Start" : "Continue";
+		Notification notification = new Notification(R.drawable.binoculas_watching, operation+" watching "+names,
+				System.currentTimeMillis());
+		Intent notificationIntent = new Intent(this, PickFreindsActivity.class);
+		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
+		notification.setLatestEventInfo(this, "Green To Talk",
+				"Watching "+names, pendingIntent);
+		return notification;
+	}
+
+	private String getNamesString(String excludeName) {
+		String names = "";
+		Collection<String> values = mSelectedContacts.values();
+		for (String name: values) {
+			if (!name.equals(excludeName)) {
+				names += name+", ";
+			}
+		}
+		return names.substring(0, names.length()-2);
 	}
 
 	@Override
@@ -81,7 +102,8 @@ public class NotificationService extends Service implements RosterListener {
 		running = false;
 	}
 
-	private void makeAndroidNotification(String name) {
+	private void makeAndroidNotification(String email) {
+		String name = mSelectedContacts.get(email);
 		String presenceStr = "available";
 		String ns = Context.NOTIFICATION_SERVICE;
 		final NotificationManager notificationManager = (NotificationManager) getSystemService(ns);
@@ -101,12 +123,9 @@ public class NotificationService extends Service implements RosterListener {
 		notification.defaults |= Notification.DEFAULT_SOUND;
 		notification.defaults |= Notification.DEFAULT_VIBRATE;
 		notification.flags = Notification.FLAG_AUTO_CANCEL;
-		mHandler.post(new Runnable() {
-			@Override
-			public void run() {
-				notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
-			}
-		});
+		notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
+		if (mSelectedContacts.size() > 1)
+			notificationManager.notify(ONGOING_NOTIFICATION, getForegroundNotification(getNamesString(name), false));				
 	}
 
 	@Override
@@ -128,14 +147,14 @@ public class NotificationService extends Service implements RosterListener {
 	public void entriesUpdated(Collection<String> arg0) {}
 
 	@Override
-	public void presenceChanged(Presence presence) {
-		String email = StringUtils.parseBareAddress(presence.getFrom()); 
+	public synchronized void presenceChanged(Presence presence) {
+		String email = StringUtils.parseBareAddress(presence.getFrom());
 		if (mSelectedContacts.containsKey(email)) {
 			Log.i(this.getClass().getName(),"Presence changed: " + presence.getFrom() + " " + presence);
 			if (presence.getType() == Presence.Type.available  &&  
 					(presence.getMode() == null  ||  presence.getMode() == Presence.Mode.available  ||  
 					(presence.getMode() == Presence.Mode.dnd  &&  isDndAsAvailable()))) {
-				makeAndroidNotification(mSelectedContacts.get(email));
+				makeAndroidNotification(email);
 				mSelectedContacts.remove(email);
 				final Intent intent = new Intent(PickFreindsActivity.UPDATE_LIST_BROADCAST);
 				intent.putExtra(UNSELECT_CONTACT, true);

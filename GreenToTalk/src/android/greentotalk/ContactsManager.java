@@ -19,7 +19,7 @@ import android.os.Bundle;
 import android.util.Log;
 
 public class ContactsManager {
-	
+
 	private SharedPreferences mSavedSelectedContacts;
 	public static final String SAVED_SELECTED_CONTACTS = "android.greentotalk.SAVED_SELECTED_CONTACTS";
 	private static final String TAG = "ContactManager";
@@ -27,8 +27,8 @@ public class ContactsManager {
 	private Map<String, Contact> mContactsMap;
 	private Map<String, Boolean> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionManager;
-	
-	
+
+
 	@SuppressWarnings("unchecked")
 	public ContactsManager(SharedPreferences savedSelectedContacts) {
 		mContactsList = new ArrayList<Contact>();
@@ -37,7 +37,7 @@ public class ContactsManager {
 		mSavedSelectedContacts = savedSelectedContacts;
 		mSelectedContacts = (Map<String, Boolean>) mSavedSelectedContacts.getAll();
 	}
-	
+
 	public void updateContactList() {
 		for (RosterEntry entry: mConnectionManager.getEntries()) {
 			String email = entry.getUser();
@@ -93,26 +93,26 @@ public class ContactsManager {
 		Collections.sort(mContactsList);
 		Log.i(TAG, "updateUI for: "+contact);
 	}
-	
+
 	public List<Contact> getContactList() {
 		return mContactsList;
 	}
-	
+
 	public String getNameAt(int position) {
 		assert(position>-1 && position<mContactsList.size());
 		return mContactsList.get(position).getName();
 	}
-	
+
 	public String getEmailAt(int position) {
 		assert(position>-1 && position<mContactsList.size());
 		return mContactsList.get(position).getEmail();
 	}
-	
+
 	public int getModeAt(int position) {
 		assert(position>-1 && position<mContactsList.size());
 		return mContactsList.get(position).getMode();
 	}
-	
+
 	public String getStringModeAt(int position) {
 		assert(position>-1 && position<mContactsList.size());
 		return mContactsList.get(position).getStringMode();
@@ -130,11 +130,11 @@ public class ContactsManager {
 			mSelectedContacts.remove(email);
 		}
 	}
-	
+
 	public String getName(String email) {
 		return mContactsMap.get(email).getName();
 	}
-	
+
 	public void setSelectedAndSave(String email, boolean selected) {
 		setSelected(email, selected);
 		Editor edit = mSavedSelectedContacts.edit();
@@ -151,18 +151,16 @@ public class ContactsManager {
 		mContactsMap.clear();
 		mContactsList.clear();
 	}
-	
+
 	public void sendSelectedContactsToNotificationService(Context context) {
 		Bundle bundle = new Bundle();
-		if (!mSelectedContacts.isEmpty()) {
-			Intent intent = new Intent(context, NotificationService.class);
-			Set<String> emails = mSelectedContacts.keySet();
-			for (String email: emails) {
-				bundle.putString(email, mContactsMap.get(email).getName());
-			}
-			intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
-			context.startService(intent);
+		Intent intent = new Intent(context, NotificationService.class);
+		Set<String> emails = mSelectedContacts.keySet();
+		for (String email: emails) {
+			bundle.putString(email, mContactsMap.get(email).getName());
 		}
+		intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
+		context.startService(intent);
 	}
 
 	public void setOppositeSelection(String email) {
@@ -186,5 +184,15 @@ public class ContactsManager {
 
 	public void setOppositeSelection(Contact contact) {
 		setOppositeSelection(contact.getEmail());
+	}
+	
+	int countSavedSelectedContacts() {
+		return mSelectedContacts.size();
+	}
+
+	public void deleteSavedSelectedContacts() {
+		Editor edit = mSavedSelectedContacts.edit();
+		edit.clear();
+		edit.apply();
 	}
 }
