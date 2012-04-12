@@ -1,25 +1,27 @@
 package android.greentotalk;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.jivesoftware.smack.RosterListener;
 import org.jivesoftware.smack.packet.Presence;
+import org.jivesoftware.smack.packet.Presence.Mode;
 import org.jivesoftware.smack.util.StringUtils;
 
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
@@ -32,13 +34,11 @@ public class NotificationService extends Service implements RosterListener {
 	private static final String TAG = "NotificationService";
 	private Map<String, String> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionMgr;
-	private Handler mHandler;
 	private SharedPreferences mSettings;
 	private SharedPreferences mSavedSelectedContacts;
 	
 	@Override
 	public void onCreate() {
-		mHandler = new Handler(); // created in the main thread
 		mSavedSelectedContacts = getSharedPreferences(ContactsManager.SAVED_SELECTED_CONTACTS, MODE_PRIVATE);
 		GreenToTalkApplication application= (GreenToTalkApplication)getApplication();
 		mSettings = PreferenceManager.getDefaultSharedPreferences(application);
@@ -84,8 +84,9 @@ public class NotificationService extends Service implements RosterListener {
 
 	private String getNamesString(String excludeName) {
 		String names = "";
-		Collection<String> values = mSelectedContacts.values();
-		for (String name: values) {
+		List<String> list = new ArrayList<String>(mSelectedContacts.values());
+		Collections.sort(list);
+		for (String name: list) {
 			if (!name.equals(excludeName)) {
 				names += name+", ";
 			}
@@ -100,12 +101,15 @@ public class NotificationService extends Service implements RosterListener {
 		mConnectionMgr.removeRosterListener(this);
 	}
 
-	private void makeAndroidNotification(String email) {
+	private void makeAndroidNotification(String email, Mode mode) {
 		String name = mSelectedContacts.get(email);
 		String presenceStr = "available";
 		String ns = Context.NOTIFICATION_SERVICE;
 		final NotificationManager notificationManager = (NotificationManager) getSystemService(ns);
 		int icon = R.drawable.logo2;
+		if (mode == Presence.Mode.dnd) {
+			icon = R.drawable.red_b;
+		}
 		CharSequence tickerText = name + " is " + presenceStr;
 		long when = System.currentTimeMillis();
 
@@ -152,7 +156,7 @@ public class NotificationService extends Service implements RosterListener {
 			if (presence.getType() == Presence.Type.available  &&  
 					(presence.getMode() == null  ||  presence.getMode() == Presence.Mode.available  ||  
 					(presence.getMode() == Presence.Mode.dnd  &&  isDndAsAvailable()))) {
-				makeAndroidNotification(email);
+				makeAndroidNotification(email, presence.getMode());
 				mSelectedContacts.remove(email);
 				final Intent intent = new Intent(PickFreindsActivity.UPDATE_LIST_BROADCAST);
 				intent.putExtra(UNSELECT_CONTACT, true);

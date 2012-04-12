@@ -5,6 +5,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.TextView;
 
 public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
@@ -40,7 +41,7 @@ public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
             // we want to bind data to.
             holder = new ViewHolder();
             holder.name = (TextView) convertView.findViewById(R.id.name);
-            holder.mode = (TextView) convertView.findViewById(R.id.mode);
+            holder.mode = (ImageView) convertView.findViewById(R.id.mode);
             holder.select = (CheckBox) convertView.findViewById(R.id.select);
             holder.select.setFocusable(false);
             convertView.setTag(holder);
@@ -52,7 +53,19 @@ public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
 
         // Bind the data efficiently with the holder.
         holder.name.setText(mContactsManager.getNameAt(position));
-        holder.mode.setText(mContactsManager.getStringModeAt(position));
+        if (mContactsManager.getModeAt(position) == Contact.AVAILABLE) {
+        	holder.mode.setImageResource(R.drawable.available_icon);
+        }
+        else if (mContactsManager.getModeAt(position) == Contact.AWAY) {
+        	holder.mode.setImageResource(R.drawable.orange_b_smaller5);
+        }
+        else if (mContactsManager.getModeAt(position) == Contact.DND) {
+        	holder.mode.setImageResource(R.drawable.red_b_smaller4);
+        }
+        else if (mContactsManager.getModeAt(position) == Contact.UNAVAILABLE) {
+        	holder.mode.setImageResource(R.drawable.orange_w_smaller3);
+        }
+        
         holder.select.setChecked(false);
         if (mContactsManager.isSelectedAt(position))
         	holder.select.setChecked(true);
@@ -62,7 +75,7 @@ public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
 	
 	static class ViewHolder {
         TextView name;
-        TextView mode;
+        ImageView mode;
         CheckBox select;
     }
 }
