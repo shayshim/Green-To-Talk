@@ -4,8 +4,14 @@
     package="android.greentotalk"
     android:versionCode="1"
     android:versionName="1.0">
-    <uses-permission
-        android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+            <receiver android:name=".receiver.ConnectivityReceiver">
+                <intent-filter>
+                    <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
+                </intent-filter>
+            </receiver>
     <application
         android:icon="@drawable/logo2"
         android:label="@string/label"
@@ -24,6 +30,7 @@
         <activity android:name=".PickFreindsActivity" android:configChanges="keyboardHidden|orientation"/>
         <service android:enabled="true" android:name=".NotificationService" />
         <service android:enabled="true" android:name=".ContactListListenerService" />
+        <service android:enabled="true" android:name=".ConnectionStatusService" />
     </application>
     <uses-sdk
         android:minSdkVersion="5" />

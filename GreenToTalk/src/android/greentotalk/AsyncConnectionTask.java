@@ -1,8 +1,8 @@
 package android.greentotalk;
 
-import org.jivesoftware.smack.packet.Presence;
-
+import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.os.AsyncTask;
 import android.util.Log;
@@ -12,67 +12,68 @@ import android.util.Log;
  * Provides utility methods for communicating with the server.
  */
 public class AsyncConnectionTask extends AsyncTask<String, Void, Boolean> {
-	public static final String PARAM_USERNAME = "username";
-	public static final String PARAM_PASSWORD = "password";
-	public static final String PARAM_UPDATED = "timestamp";
-	public static final String USER_AGENT = "AuthenticationService/1.0";
 	private ProgressDialog mProgressDialog;
-	private final SigninActivity mContext;
+	private final Context mContext;
+	private SynchronizedConnectionManager mConnectionManager;
+	private boolean mShowProgressDialog;
 
-	public AsyncConnectionTask(SigninActivity context) {
+	public AsyncConnectionTask(Context context, boolean showProgressDialog) {
 		mContext = context;
-		mProgressDialog = new ProgressDialog(context);
-		mProgressDialog.setMessage("Singing-in...");
-		mProgressDialog.setIndeterminate(true);
-		mProgressDialog.setCancelable(true);
-		final AsyncConnectionTask thread = this;
-		mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
-			public void onCancel(DialogInterface dialog) {
-				Log.i("ConnectionAsyncTask", "dialog cancel has been invoked");
-				if (thread != null) {
-					thread.cancel(false);
+		mShowProgressDialog = showProgressDialog;
+		mConnectionManager = SynchronizedConnectionManager.getInstance();
+		if (showProgressDialog) { 
+			mProgressDialog = new ProgressDialog(context);
+			mProgressDialog.setMessage("Singing-in...");
+			mProgressDialog.setIndeterminate(true);
+			mProgressDialog.setCancelable(true);
+			final AsyncConnectionTask thread = this;
+			mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+				public void onCancel(DialogInterface dialog) {
+					Log.i("ConnectionAsyncTask", "dialog cancel has been invoked");
+					if (thread != null) {
+						thread.cancel(false);
+					}
+					((Activity) mContext).finish();
 				}
-				mContext.finish();
-			}
-		});
+			});
+		}
 	}
 
 	@Override
 	protected void onPreExecute() {
-		mProgressDialog.show();
+		if (mShowProgressDialog) {
+			mProgressDialog.show();
+		}
 	}
 
 	@Override
 	protected void onPostExecute(final Boolean success) {
-		mContext.onAuthenticationResult(success.booleanValue());
-		if (mProgressDialog.isShowing()) {
-			mProgressDialog.dismiss();
+		if (mShowProgressDialog) {
+			if (mContext instanceof SigninActivity) {
+				((SigninActivity)mContext).onAuthenticationResult(success.booleanValue());
+			}
+			if (mProgressDialog.isShowing()) {
+				mProgressDialog.dismiss();
+			}
+			if (success)
+				((Activity) mContext).finish();
 		}
-		if (success)
-			mContext.finish();
+		else {
+			if (mContext instanceof ConnectionStatusService) {
+				((ConnectionStatusService) mContext).sendBroadcast(ConnectionStatusService.ADD_CONTACTS_LISTENER);
+			}
+		}
 	}
 
 	@Override
 	protected Boolean doInBackground(String... strings) {
 		String username = strings[0];
 		String password = strings[1];
-		int retries = 2;
-		boolean result = false;
-		while (!result  &&  retries > 0) {
-			result = SynchronizedConnectionManager.getInstance().connect(username, password);
-			retries--;
-		}
-		if (!result)
-			return false;
-		Presence p = new Presence(Presence.Type.available);
-		p.setMode(Presence.Mode.away);
-		p.setPriority(-127);
-		SynchronizedConnectionManager.getInstance().sendPacket(p);
-		return true;
+		return mConnectionManager.connectAndRetry(username, password);
 	}
 
 	@Override
 	protected void onCancelled () {
-		SynchronizedConnectionManager.getInstance().disconnect();
+		mConnectionManager.disconnect();
 	}
 }

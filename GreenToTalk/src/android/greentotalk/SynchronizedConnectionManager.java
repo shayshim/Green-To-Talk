@@ -34,6 +34,22 @@ public class SynchronizedConnectionManager {
 		mConnected = false;
 		return connection;
 	}
+	
+	boolean connectAndRetry(String username, String password) {
+		int retries = 2;
+		boolean result = false;
+		while (!result  &&  retries > 0) {
+			result = SynchronizedConnectionManager.getInstance().connect(username, password);
+			retries--;
+		}
+		if (!result)
+			return false;
+		Presence p = new Presence(Presence.Type.available);
+		p.setMode(Presence.Mode.away);
+		p.setPriority(-127);
+		SynchronizedConnectionManager.getInstance().sendPacket(p);
+		return true;
+	}
 
 	public static SynchronizedConnectionManager getInstance() {
 		// first call is always made from main thread, so no need to synchronize here 
@@ -131,5 +147,10 @@ public class SynchronizedConnectionManager {
 		if (!mConnected)
 			return null;
 		return mConnection.getRoster().getPresence(email);
+	}
+
+	public void removeOldConnection() {
+		mConnected = false;
+		mConnection = getNewConnection();
 	}
 }

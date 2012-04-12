@@ -19,6 +19,7 @@ package android.greentotalk;
 import android.app.Activity;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
 import android.text.TextUtils;
@@ -29,6 +30,7 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /**
  * Activity which displays login screen to the user.
@@ -50,7 +52,7 @@ public class SigninActivity extends Activity {
 	private GreenToTalkApplication mApplication;
 	private SharedPreferences mSettings;
 	private SynchronizedConnectionManager mConnectionManager;
-	
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -87,6 +89,7 @@ public class SigninActivity extends Activity {
 		Button okLogin = (Button)findViewById(R.id.ok_button);
 		okLogin.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
+				mMessage.setText("");
 				handleLogin();
 			}
 		});
@@ -97,14 +100,21 @@ public class SigninActivity extends Activity {
 	 * the server for authentication.
 	 */
 	private void handleLogin() {
+		getSharedPreferences(ContactsManager.SAVED_SELECTED_CONTACTS, MODE_PRIVATE).edit().clear().apply();
 		mUsername = mUsernameEdit.getText().toString();
 		mPassword = mPasswordEdit.getText().toString();
 		if (TextUtils.isEmpty(mUsername) || TextUtils.isEmpty(mPassword)) {
 			mMessage.setText(getMessage());
-		} else {
+		} 
+		else if (!ConnectionStatusService.isConnectedToInternet(this)) {
+			Toast.makeText(getApplicationContext(), "No internet connection", Toast.LENGTH_LONG);
+			Log.i(TAG, "No internet connection");
+			mMessage.setText("No internet connection");
+		}
+		else {
 			String email = (mUsername.endsWith("@"+GMAIL_DOMAIN))? mUsername : mUsername+"@"+GMAIL_DOMAIN; 
 			// Start authenticating...
-			new AsyncConnectionTask(this).execute(email, mPassword);
+			new AsyncConnectionTask(this, true).execute(email, mPassword);
 		}
 	}
 
@@ -132,6 +142,7 @@ public class SigninActivity extends Activity {
 				edit.apply();
 			}
 			pickFreindsActivity();
+			startService(new Intent(this, ConnectionStatusService.class));
 		} else {
 			Log.e(TAG, "onAuthenticationResult: failed to authenticate");
 			if (!mApplication.isAccountConfigured() || isNewUser()) {
@@ -140,14 +151,14 @@ public class SigninActivity extends Activity {
 			}
 			else {
 				// there are saved username and not valid password. need to ask for the new password
-				// NEED TO CONSIDER ALSO NO CONNECTION OPTION (WE GET HERE ALSO WHEN NO WIFI/INTERNET CONNECTION)
 				mMessage.setText(getText(R.string.login_activity_loginfail_text_pwonly));
+
 			}
 			mPasswordEdit.setText("");
 			mPasswordEdit.requestFocus();
 		}
 	}
-	
+
 	private boolean isNewUser() {
 		return !mUsername.equals(mSettings.getString(GreenToTalkApplication.ACCOUNT_USERNAME_KEY, null));
 	}

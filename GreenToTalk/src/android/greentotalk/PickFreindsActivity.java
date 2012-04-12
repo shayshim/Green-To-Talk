@@ -23,6 +23,8 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.TextView;
+import android.widget.Toast;
 
 public class PickFreindsActivity extends ListActivity {
 
@@ -58,25 +60,42 @@ public class PickFreindsActivity extends ListActivity {
 				finish();
 			}
 		});
-		if (!NotificationService.isServiceRunning()  &&  mContactsManager.countSavedSelectedContacts() > 0)
-			mContactsManager.sendSelectedContactsToNotificationService(this);
 	}
 	
 	public ContactsManager getContactsManager() {
 		return mContactsManager;
 	}
 
-	private BroadcastReceiver broadcastReceiver = new BroadcastReceiver() {
+	private BroadcastReceiver mUpdateListBroadcastReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			updateUI(intent);
+			if (intent.getBooleanExtra(ConnectionStatusService.ADD_CONTACTS_LISTENER, false)) {
+				startService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
+				Log.i(TAG, "started service ContactListListenerService");
+			}
+			else if (intent.getBooleanExtra(ConnectionStatusService.REMOVE_CONTACTS_LISTENER, false)) {
+				stopService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
+				Log.i(TAG, "stopped service ContactListListenerService");
+				mContactsManager.clearContacts();
+				setContentView(R.layout.contact_list);
+				Toast.makeText(getApplicationContext(), "Lost internet connection", Toast.LENGTH_LONG);
+				Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
+				finishSelectContacts.setOnClickListener(new OnClickListener() {
+					public void onClick(View v) {
+						finish();
+					}
+				});
+			}
+			else {
+				updateUI(intent);
+			}
 		}
 	};
 
 	@Override
 	public void onResume() {
 		super.onResume();		
-		registerReceiver(broadcastReceiver, new IntentFilter(UPDATE_LIST_BROADCAST));
+		registerReceiver(mUpdateListBroadcastReceiver, new IntentFilter(UPDATE_LIST_BROADCAST));
 		startService(new Intent(this, ContactListListenerService.class));
 	}
 
@@ -84,7 +103,7 @@ public class PickFreindsActivity extends ListActivity {
 	public void onPause() {
 		super.onPause();
 		stopService(new Intent(this, ContactListListenerService.class));
-		unregisterReceiver(broadcastReceiver);
+		unregisterReceiver(mUpdateListBroadcastReceiver);
 	}	
 
 	private void updateUI(Intent intent) {
