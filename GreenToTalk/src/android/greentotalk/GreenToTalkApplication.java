@@ -2,6 +2,7 @@ package android.greentotalk;
 
 import android.app.Application;
 import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
 import android.preference.PreferenceManager;
 
 /**
@@ -13,10 +14,12 @@ public class GreenToTalkApplication extends Application {
 	/* Constants for PREFERENCE_KEY
 	 */
 	/** Preference key for account username. */
-	public static final String ACCOUNT_USERNAME_KEY = "account_username";
+	public static final String ACCOUNT_USERNAME_KEY = "android.greentotalk.account_username";
 	/** Preference key for account password. */
-	public static final String ACCOUNT_PASSWORD_KEY = "account_password";
-	public static final String DND_AS_AVAILABLE_KEY = "dnd_as_available";
+	public static final String ACCOUNT_PASSWORD_KEY = "android.greentotalk.account_password";
+	public static final String DND_AS_AVAILABLE_KEY = "android.greentotalk.dnd_as_available";
+	public static final String MAKE_SOUND_KEY = "android.greentotalk.MAKE_SOUND_KEY";
+	public static final String VIBRATE_KEY = "android.greentotalk.VIBRATE_KEY";
 	private boolean mIsAccountConfigured = false;
 	private static SharedPreferences mSettings;
 	private final PreferenceListener mPreferenceListener = new PreferenceListener();
@@ -28,7 +31,13 @@ public class GreenToTalkApplication extends Application {
 		String login = mSettings.getString(GreenToTalkApplication.ACCOUNT_USERNAME_KEY, "");
 		String password = mSettings.getString(GreenToTalkApplication.ACCOUNT_PASSWORD_KEY, "");
 		mIsAccountConfigured = !("".equals(login) || "".equals(password));
+		if (mIsAccountConfigured) {
+			mSettings.edit().putBoolean(DND_AS_AVAILABLE_KEY, true).apply();
+		}
 		mSettings.registerOnSharedPreferenceChangeListener(mPreferenceListener);
+		if (!mIsAccountConfigured) {
+			restoreDefaultPreferences();
+		}
 	}
 
 	@Override
@@ -68,5 +77,12 @@ public class GreenToTalkApplication extends Application {
 	
 	public static SharedPreferences getSharedPreferences() {
 		return mSettings;
+	}
+	
+	void restoreDefaultPreferences() {
+		Editor e = mSettings.edit();
+		e.clear().putBoolean(DND_AS_AVAILABLE_KEY, true);
+		e.putBoolean(MAKE_SOUND_KEY, true);
+		e.putBoolean(VIBRATE_KEY, true).apply();
 	}
 }

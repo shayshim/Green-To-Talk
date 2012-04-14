@@ -166,8 +166,12 @@ public class ContactListListenerService extends Service {
 		PendingIntent contentIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 
 		notification.setLatestEventInfo(context, contentTitle, contentText, contentIntent);
-		notification.defaults |= Notification.DEFAULT_SOUND;
-		notification.defaults |= Notification.DEFAULT_VIBRATE;
+		if (makeSound()) {
+			notification.defaults |= Notification.DEFAULT_SOUND;
+		}
+		if (vibrate()) {
+			notification.defaults |= Notification.DEFAULT_VIBRATE;
+		}
 		notification.flags = Notification.FLAG_AUTO_CANCEL;
 		notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
 		if (mSelectedContacts.size() > 1)
@@ -181,6 +185,14 @@ public class ContactListListenerService extends Service {
 
 	boolean isDndAsAvailable() {
 		return mSettings.getBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, false);
+	}
+	
+	boolean makeSound() {
+		return mSettings.getBoolean(GreenToTalkApplication.MAKE_SOUND_KEY, false);
+	}
+	
+	boolean vibrate() {
+		return mSettings.getBoolean(GreenToTalkApplication.VIBRATE_KEY, false);
 	}
 
 

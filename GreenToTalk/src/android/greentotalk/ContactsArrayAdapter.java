@@ -1,5 +1,6 @@
 package android.greentotalk;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -13,6 +14,7 @@ public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
 	private LayoutInflater mInflater;
 	private PickFreindsActivity mContext;
 	private ContactsManager mContactsManager;
+	private static final String TAG = "ContactsArrayAdapter";
 	
 	public ContactsArrayAdapter(PickFreindsActivity context) {
 		super(context, R.layout.rowlayout, context.getContactsManager().getContactList());
@@ -67,9 +69,10 @@ public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
         }
         
         holder.select.setChecked(false);
-        if (mContactsManager.isSelectedAt(position))
+        boolean isSelected = mContactsManager.isSelectedAt(position);
+        if (isSelected)
         	holder.select.setChecked(true);
-
+        
         return convertView;
 	}
 	

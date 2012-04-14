@@ -95,10 +95,11 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized void disconnect() {
-		mConnected = false;
 		if (isConnected()) {
+			Log.i(TAG, "REAL DISCONNECTION...");
 			mConnection.disconnect();
 		}
+		mConnected = false;
 	}
 
 	public synchronized void addRosterListener(RosterListener rl) {
@@ -112,6 +113,9 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized boolean isConnected() {
+		Log.i(TAG, "mConnected="+mConnected+", mConnection="+mConnection);
+		if (mConnection != null)
+			Log.i(TAG, "mConnection.isConnected()="+mConnection.isConnected()+", mConnection.isAuthenticated()"+mConnection.isAuthenticated());
 		return mConnected && mConnection!=null && mConnection.isConnected() && mConnection.isAuthenticated();
 	}
 

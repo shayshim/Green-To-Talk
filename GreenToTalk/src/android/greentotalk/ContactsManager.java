@@ -38,7 +38,6 @@ public class ContactsManager {
 	}
 
 	public void updateContactList() {
-		clearContacts();
 		for (RosterEntry entry: mConnectionManager.getEntries()) {
 			String email = entry.getUser();
 			if (! StringUtils.parseServer(email).equals(SynchronizedConnectionManager.GMAIL_DOMAIN))

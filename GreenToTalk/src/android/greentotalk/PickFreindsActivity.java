@@ -22,11 +22,10 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.ListAdapter;
 import android.widget.ListView;
-import android.widget.TextView;
-import android.widget.Toast;
 
 public class PickFreindsActivity extends ListActivity {
 
@@ -41,10 +40,9 @@ public class PickFreindsActivity extends ListActivity {
 	public static final String UNSELECT_CONTACT = "android.greentotalk.UNSELECT_CONTACT";
 	private static final int DISCONNECT_DIALOG = 0;
 	private static final int SETTINGS_DIALOG = 1;
-	private static final int ABOUT_DIALOG = 2;
-	private static final int SELECTED_DIALOG = 3;
 	private ContactsArrayAdapter mAdapter;
 	private ContactsManager mContactsManager;
+	private ScreenStateBroadcastReceiver mScreenStateBroadcastReceiver;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -53,6 +51,10 @@ public class PickFreindsActivity extends ListActivity {
 		mContactsManager = new ContactsManager(getSharedPreferences(SAVED_SELECTED_CONTACTS, MODE_PRIVATE));
 		mContactsManager.updateContactList();
 		mAdapter = new ContactsArrayAdapter(this);
+		mScreenStateBroadcastReceiver = new ScreenStateBroadcastReceiver();
+		IntentFilter screenFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+		screenFilter.addAction(Intent.ACTION_SCREEN_OFF);
+		registerReceiver(mScreenStateBroadcastReceiver, screenFilter);
 		ListView lv = getListView();
 		lv.setTextFilterEnabled(true);
 		setListAdapter(mAdapter);		
@@ -73,7 +75,7 @@ public class PickFreindsActivity extends ListActivity {
 			}
 		});
 	}
-	
+
 	public ContactsManager getContactsManager() {
 		return mContactsManager;
 	}
@@ -81,36 +83,27 @@ public class PickFreindsActivity extends ListActivity {
 	private BroadcastReceiver mUpdateListBroadcastReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-//			if (intent.getBooleanExtra(ConnectionStatusService.ADD_CONTACTS_LISTENER, false)) {
-//				startService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
-//				Log.i(TAG, "started service ContactListListenerService");
-//			}
-//			else if (intent.getBooleanExtra(ConnectionStatusService.REMOVE_CONTACTS_LISTENER, false)) {
-//				stopService(new Intent(PickFreindsActivity.this, ContactListListenerServiceOld.class));
-//				Log.i(TAG, "stopped service ContactListListenerService");
-//				mContactsManager.clearContacts();
-//				setContentView(R.layout.contact_list);
-//				Toast.makeText(getApplicationContext(), "Lost internet connection", Toast.LENGTH_LONG);
-//				Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
-//				finishSelectContacts.setOnClickListener(new OnClickListener() {
-//					public void onClick(View v) {
-//						finish();
-//					}
-//				});
-//			}
-//			else {
-				updateUI(intent);
-//			}
+			updateUI(intent);
 		}
 	};
 
 	@Override
 	public void onResume() {
-		super.onResume();		
+		super.onResume();
+		if (ScreenStateBroadcastReceiver.wasScreenOff()) {
+			mContactsManager.clearContacts();
+			mContactsManager.updateContactList();
+		}
 		registerReceiver(mUpdateListBroadcastReceiver, new IntentFilter(UPDATE_LIST_BROADCAST));
 		Intent intent = new Intent(this, ContactListListenerService.class);
 		intent.putExtra(ContactListListenerService.START_UPDATE_CONTACT_LIST, true);
 		startService(intent);
+	}
+
+	@Override
+	public void onDestroy() {
+		super.onDestroy();
+		unregisterReceiver(mScreenStateBroadcastReceiver);
 	}
 
 	@Override
@@ -148,7 +141,7 @@ public class PickFreindsActivity extends ListActivity {
 	public boolean onCreateOptionsMenu(Menu menu) {
 		super.onCreateOptionsMenu(menu);
 		MenuInflater inflater = getMenuInflater();
-		inflater.inflate(R.layout.menu_buttons, menu); 
+		inflater.inflate(R.layout.menu_buttons, menu);
 		return true;
 	}
 
@@ -163,14 +156,6 @@ public class PickFreindsActivity extends ListActivity {
 			break;
 		case R.id.menu_settings:
 			showDialog(SETTINGS_DIALOG);
-			result = true;
-			break;
-		case R.id.menu_about:
-			showDialog(ABOUT_DIALOG);
-			result = true;
-			break;
-		case R.id.menu_followed_freinds:
-			showDialog(SELECTED_DIALOG);
 			result = true;
 			break;
 		default:
@@ -201,9 +186,13 @@ public class PickFreindsActivity extends ListActivity {
 			title = getString(R.string.settings_title, versionname);
 			builder.setTitle(title);
 			builder.setIcon(R.drawable.available_icon);
-			final String[] strings = new String[]{"Treat \"Busy\" as \"Available\""}; 
+			final String[] strings = new String[]{"Treat \"Busy\" as \"Available\"", 
+													"Make sound when available", 
+													"Vibrate when available"}; 
 			final OnMultiChoiceClickListener onClick = new PreferencesOnMultiChoiceClickListener();
-			boolean [] choices = {settings.getBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, false)};
+			boolean [] choices = {settings.getBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, false), 
+					settings.getBoolean(GreenToTalkApplication.MAKE_SOUND_KEY, false), 
+					settings.getBoolean(GreenToTalkApplication.VIBRATE_KEY, false)};
 			builder.setMultiChoiceItems(strings, choices, onClick);
 			builder.setPositiveButton(R.string.ok_button, new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int whichButton) {
@@ -211,47 +200,27 @@ public class PickFreindsActivity extends ListActivity {
 				}
 			});
 			break;
-		case ABOUT_DIALOG:
-			title = getString(R.string.about_title, versionname);
-			builder.setTitle(title).setMessage(R.string.about_msg);
-			builder.setIcon(R.drawable.available_icon);
-			builder.setPositiveButton(R.string.ok_button, new DialogInterface.OnClickListener() {
-				public void onClick(DialogInterface dialog, int whichButton) {
-					dialog.cancel();
-				}
-			});
-			break;
-		case SELECTED_DIALOG:
-			builder.setTitle("Monitored freinds").setMessage("1\n2\n3");
-			builder.setIcon(R.drawable.available_icon);
-			builder.setPositiveButton(R.string.ok_button, new DialogInterface.OnClickListener() {
-				public void onClick(DialogInterface dialog, int whichButton) {
-					dialog.cancel();
-				}
-			});
-			break;
 		case DISCONNECT_DIALOG:
-			title = "Disconnect";
-			builder.setTitle(title).setMessage("Are you sure you want to disconnect?");
+			title = "Are you sure you want to disconnect?";
+			builder.setTitle(title);
 			builder.setIcon(R.drawable.available_icon);
-			//			final String[] strings2 = new String[]{"Also delete username and password and restore default preferences"};
-			//			final boolean [] choices2 = {false};
-			//			builder.setMultiChoiceItems(strings2, choices2, new OnMultiChoiceClickListener() {
-			//				@Override
-			//				public void onClick(DialogInterface dialog, int which,
-			//						boolean isChecked) {
-			//					choices2[0] = isChecked;
-			//				}
-			//			});
+			final String[] strings2 = new String[]{"Also delete account settings"};
+			final boolean [] choices2 = {false};
+			builder.setMultiChoiceItems(strings2, choices2, new OnMultiChoiceClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which,
+						boolean isChecked) {
+					choices2[0] = isChecked;
+				}
+			});
 			builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int whichButton) {
 					stopService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
 					mContactsManager.deleteSavedSelectedContacts();
 					new AsyncDisconnectionTask(PickFreindsActivity.this).execute((Void[])null);
-					//					if (choices2[0]) {
-					//						settings.edit().clear();
-					//						settings.edit().apply();
-					//					}
+					if (choices2[0]) {
+						application.restoreDefaultPreferences();
+					}
 					dialog.dismiss();
 				}
 			});
@@ -275,7 +244,15 @@ public class PickFreindsActivity extends ListActivity {
 		}
 		@Override
 		public void onClick(DialogInterface dialog, int which, final boolean isChecked) {
-			mEditor.putBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, isChecked);
+			if (which == 0) {
+				mEditor.putBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, isChecked);
+			}
+			else if (which == 1) {
+				mEditor.putBoolean(GreenToTalkApplication.MAKE_SOUND_KEY, isChecked);
+			}
+			else {
+				mEditor.putBoolean(GreenToTalkApplication.VIBRATE_KEY, isChecked);
+			}
 			mEditor.apply();
 		}
 	}
