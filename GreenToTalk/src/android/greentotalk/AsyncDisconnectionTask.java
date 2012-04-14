@@ -21,8 +21,8 @@ public class AsyncDisconnectionTask extends AsyncTask<Void, Void, Void> {
 
 	@Override
 	protected void onPreExecute() {
-		mContext.stopService(new Intent(mContext, ContactListListenerService.class));
 		mProgressDialog.show();
+		mContext.stopService(new Intent(mContext, ContactListListenerService.class));
 	}
 
 	@Override
@@ -39,7 +39,7 @@ public class AsyncDisconnectionTask extends AsyncTask<Void, Void, Void> {
 	protected Void doInBackground(Void... params) {
 		if (ContactListListenerService.isConnectedToInternet(mContext)) {
 			Log.i(TAG, "doInBackground, real disconnection");
-			SynchronizedConnectionManager.getInstance().disconnect();	
+			SynchronizedConnectionManager.getInstance().disconnect();
 		}
 		else {
 			Log.i(TAG, "doInBackground, work around disconnection");

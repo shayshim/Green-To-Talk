@@ -61,15 +61,17 @@ public class PickFreindsActivity extends ListActivity {
 		Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
 		finishSelectContacts.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
-				mContactsManager.saveSelectedContacts();
-				Bundle bundle = new Bundle();
-				Intent intent = new Intent(PickFreindsActivity.this, ContactListListenerService.class);
-				Set<String> emails = mContactsManager.getAllEmails();
-				for (String email: emails) {
-					bundle.putString(email, mContactsManager.getName(email));
+				if (SynchronizedConnectionManager.getInstance().isConnected()) {
+					mContactsManager.saveSelectedContacts();
+					Bundle bundle = new Bundle();
+					Intent intent = new Intent(PickFreindsActivity.this, ContactListListenerService.class);
+					Set<String> emails = mContactsManager.getAllEmails();
+					for (String email: emails) {
+						bundle.putString(email, mContactsManager.getName(email));
+					}
+					intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
+					startService(intent);
 				}
-				intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
-				startService(intent);
 				finish();
 			}
 		});
@@ -186,8 +188,8 @@ public class PickFreindsActivity extends ListActivity {
 			builder.setTitle(title);
 			builder.setIcon(R.drawable.available_icon);
 			final String[] strings = new String[]{"Treat \"Busy\" as \"Available\"", 
-													"Make sound when available", 
-													"Vibrate when available"}; 
+					"Make sound when available", 
+			"Vibrate when available"}; 
 			final OnMultiChoiceClickListener onClick = new PreferencesOnMultiChoiceClickListener();
 			boolean [] choices = {settings.getBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, false), 
 					settings.getBoolean(GreenToTalkApplication.MAKE_SOUND_KEY, false), 
