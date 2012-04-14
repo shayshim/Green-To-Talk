@@ -17,10 +17,12 @@ public class SynchronizedConnectionManager {
 
 	private static SynchronizedConnectionManager instance = null;
 	private XMPPConnection mConnection;
-	private String mUsername;
+	private String mUsernameEmail;
 	private Roster mRoster;
 	boolean mConnected;
-	
+	public static final String GMAIL_DOMAIN = "gmail.com";
+	private static final String TAG = "SynchronizedConnectionManager";
+
 	private SynchronizedConnectionManager() {
 		mConnected = false;
 	}
@@ -34,12 +36,13 @@ public class SynchronizedConnectionManager {
 		mConnected = false;
 		return connection;
 	}
-	
+
 	boolean connectAndRetry(String username, String password) {
-		int retries = 2;
+		int retries = 3;
 		boolean result = false;
 		while (!result  &&  retries > 0) {
-			result = SynchronizedConnectionManager.getInstance().connect(username, password);
+			result = connect(username, password);
+			Log.i(TAG, "after connect result is "+result);
 			retries--;
 		}
 		if (!result)
@@ -47,7 +50,7 @@ public class SynchronizedConnectionManager {
 		Presence p = new Presence(Presence.Type.available);
 		p.setMode(Presence.Mode.away);
 		p.setPriority(-127);
-		SynchronizedConnectionManager.getInstance().sendPacket(p);
+		sendPacket(p);
 		return true;
 	}
 
@@ -59,41 +62,24 @@ public class SynchronizedConnectionManager {
 		return instance;
 	}
 
+	public synchronized void addConnectionListener(ConnectionListener listener) {
+		if (isConnected()) {
+			mConnection.addConnectionListener(listener);
+		}
+	}
+
 	public synchronized boolean connect(String username, String password) {
-		mUsername = username;
+		if (isConnected()) {
+			return true;
+		}
+		mUsernameEmail = (username.endsWith("@"+GMAIL_DOMAIN))? username : username+"@"+GMAIL_DOMAIN;
 		mConnection = getNewConnection();
 		try {
 			// Connect to the server
 			mConnection.connect();
-			mConnection.addConnectionListener(new ConnectionListener() {
 
-				@Override
-				public void reconnectionSuccessful() {
-					Log.i("ThreadSafeConnectionHandler", "Successfully reconnected to the XMPP server.");
-				}
-
-				@Override
-				public void reconnectionFailed(Exception arg0) {
-					Log.i("ThreadSafeConnectionHandler", "Failed to reconnect to the XMPP server.");
-				}
-
-				@Override
-				public void reconnectingIn(int seconds) {
-					Log.i("ThreadSafeConnectionHandler", "Reconnecting in " + seconds + " seconds.");
-				}
-
-				@Override
-				public void connectionClosedOnError(Exception arg0) {
-					Log.i("ThreadSafeConnectionHandler", "Connection to XMPP server was lost.");
-				}
-
-				@Override
-				public void connectionClosed() {
-					Log.i("ThreadSafeConnectionHandler", "XMPP connection was closed.");
-				}
-			});
 			// Log into the server
-			mConnection.login(username, password);
+			mConnection.login(mUsernameEmail, password);
 		}
 		catch (XMPPException e1) {
 			e1.printStackTrace();
@@ -110,47 +96,59 @@ public class SynchronizedConnectionManager {
 
 	public synchronized void disconnect() {
 		mConnected = false;
-		mConnection.disconnect();
+		if (isConnected()) {
+			mConnection.disconnect();
+		}
 	}
 
 	public synchronized void addRosterListener(RosterListener rl) {
-		if (mConnected)
+		if (isConnected())
 			mRoster.addRosterListener(rl);
 	}
 
 	public synchronized void sendPacket(Presence p) {
-		if (mConnected)
+		if (isConnected())
 			mConnection.sendPacket(p);
 	}
 
 	public synchronized boolean isConnected() {
-		return mConnected;
+		return mConnected && mConnection!=null && mConnection.isConnected() && mConnection.isAuthenticated();
 	}
 
 	public synchronized void removeRosterListener(RosterListener rl) {
-		if (mConnected) {
+		if (isConnected()) {
 			mRoster.removeRosterListener(rl);
 		}
 	}
 
 	public synchronized Collection<RosterEntry> getEntries() {
-		if (!mConnected)
+		if (!isConnected())
 			return new ArrayList<RosterEntry>();
 		return mRoster.getEntries();
 	}
 
-	public synchronized String getUsername() {
-		return mUsername;
+	public synchronized String getUsernameEmail() {
+		return mUsernameEmail;
 	}
-	
+
 	public synchronized Presence getPresence(String email) {
-		if (!mConnected)
+		if (!isConnected())
 			return null;
 		return mConnection.getRoster().getPresence(email);
 	}
 
-	public void removeOldConnection() {
+	public synchronized void removeOldConnection() {
 		mConnected = false;
 		mConnection = getNewConnection();
+	}
+
+	public synchronized void removeConnectionListener(ConnectionListener listener) {
+		if (isConnected()) {
+			mConnection.removeConnectionListener(listener);
+		}
+	}
+
+	public void setConnected(boolean b) {
+		mConnected = false;
 	}
 }

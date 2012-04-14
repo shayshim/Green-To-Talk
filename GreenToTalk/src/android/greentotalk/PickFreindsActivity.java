@@ -1,5 +1,7 @@
 package android.greentotalk;
 
+import java.util.Set;
+
 import android.app.AlertDialog;
 import android.app.Dialog;
 import android.app.ListActivity;
@@ -34,6 +36,9 @@ public class PickFreindsActivity extends ListActivity {
 	public static final String EMAIL_FIELD = "android.greentotalk.email";
 	public static final String UPDATE_LIST_BROADCAST = "android.greentotalk.update_list_broadcast";
 	public static final String START_FOR_SAVED_CONTACTS = "android.greentotalk.START_FOR_SAVED_CONTACTS";
+	public static final String SAVED_SELECTED_CONTACTS = "android.greentotalk.SAVED_SELECTED_CONTACTS";
+	public static final String UPDATE_LIST_CONTENT = "android.greentotalk.UPDATE_LIST_CONTENT";
+	public static final String UNSELECT_CONTACT = "android.greentotalk.UNSELECT_CONTACT";
 	private static final int DISCONNECT_DIALOG = 0;
 	private static final int SETTINGS_DIALOG = 1;
 	private static final int ABOUT_DIALOG = 2;
@@ -45,7 +50,7 @@ public class PickFreindsActivity extends ListActivity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		Log.i(TAG, "onCreate...");
-		mContactsManager = new ContactsManager(getSharedPreferences(ContactsManager.SAVED_SELECTED_CONTACTS, MODE_PRIVATE));
+		mContactsManager = new ContactsManager(getSharedPreferences(SAVED_SELECTED_CONTACTS, MODE_PRIVATE));
 		mContactsManager.updateContactList();
 		mAdapter = new ContactsArrayAdapter(this);
 		ListView lv = getListView();
@@ -56,7 +61,14 @@ public class PickFreindsActivity extends ListActivity {
 		finishSelectContacts.setOnClickListener(new OnClickListener() {
 			public void onClick(View v) {
 				mContactsManager.saveSelectedContacts();
-				mContactsManager.sendSelectedContactsToNotificationService(PickFreindsActivity.this);
+				Bundle bundle = new Bundle();
+				Intent intent = new Intent(PickFreindsActivity.this, ContactListListenerService.class);
+				Set<String> emails = mContactsManager.getAllEmails();
+				for (String email: emails) {
+					bundle.putString(email, mContactsManager.getName(email));
+				}
+				intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
+				startService(intent);
 				finish();
 			}
 		});
@@ -69,26 +81,26 @@ public class PickFreindsActivity extends ListActivity {
 	private BroadcastReceiver mUpdateListBroadcastReceiver = new BroadcastReceiver() {
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			if (intent.getBooleanExtra(ConnectionStatusService.ADD_CONTACTS_LISTENER, false)) {
-				startService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
-				Log.i(TAG, "started service ContactListListenerService");
-			}
-			else if (intent.getBooleanExtra(ConnectionStatusService.REMOVE_CONTACTS_LISTENER, false)) {
-				stopService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
-				Log.i(TAG, "stopped service ContactListListenerService");
-				mContactsManager.clearContacts();
-				setContentView(R.layout.contact_list);
-				Toast.makeText(getApplicationContext(), "Lost internet connection", Toast.LENGTH_LONG);
-				Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
-				finishSelectContacts.setOnClickListener(new OnClickListener() {
-					public void onClick(View v) {
-						finish();
-					}
-				});
-			}
-			else {
+//			if (intent.getBooleanExtra(ConnectionStatusService.ADD_CONTACTS_LISTENER, false)) {
+//				startService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
+//				Log.i(TAG, "started service ContactListListenerService");
+//			}
+//			else if (intent.getBooleanExtra(ConnectionStatusService.REMOVE_CONTACTS_LISTENER, false)) {
+//				stopService(new Intent(PickFreindsActivity.this, ContactListListenerServiceOld.class));
+//				Log.i(TAG, "stopped service ContactListListenerService");
+//				mContactsManager.clearContacts();
+//				setContentView(R.layout.contact_list);
+//				Toast.makeText(getApplicationContext(), "Lost internet connection", Toast.LENGTH_LONG);
+//				Button finishSelectContacts = (Button) findViewById(R.id.finish_select_contacts);
+//				finishSelectContacts.setOnClickListener(new OnClickListener() {
+//					public void onClick(View v) {
+//						finish();
+//					}
+//				});
+//			}
+//			else {
 				updateUI(intent);
-			}
+//			}
 		}
 	};
 
@@ -96,24 +108,29 @@ public class PickFreindsActivity extends ListActivity {
 	public void onResume() {
 		super.onResume();		
 		registerReceiver(mUpdateListBroadcastReceiver, new IntentFilter(UPDATE_LIST_BROADCAST));
-		startService(new Intent(this, ContactListListenerService.class));
+		Intent intent = new Intent(this, ContactListListenerService.class);
+		intent.putExtra(ContactListListenerService.START_UPDATE_CONTACT_LIST, true);
+		startService(intent);
 	}
 
 	@Override
 	public void onPause() {
 		super.onPause();
-		stopService(new Intent(this, ContactListListenerService.class));
 		unregisterReceiver(mUpdateListBroadcastReceiver);
 	}	
 
 	private void updateUI(Intent intent) {
 		String email = intent.getStringExtra(Contact.EMAIL);
-		boolean unselect = intent.getBooleanExtra(NotificationService.UNSELECT_CONTACT, false);
-		if (unselect) {
+		if (intent.getBooleanExtra(UNSELECT_CONTACT, false)) {
 			mContactsManager.setSelected(email, false);
 		}
-		else {
-			mContactsManager.updateContactList(email);
+		else if (intent.getBooleanExtra(UPDATE_LIST_CONTENT, false)) {
+			if (email == null) {
+				mContactsManager.updateContactList();
+			}
+			else {
+				mContactsManager.updateContactList(email);
+			}
 		}
 		mAdapter.notifyDataSetChanged();
 	}
@@ -228,6 +245,7 @@ public class PickFreindsActivity extends ListActivity {
 			//			});
 			builder.setPositiveButton("Yes", new DialogInterface.OnClickListener() {
 				public void onClick(DialogInterface dialog, int whichButton) {
+					stopService(new Intent(PickFreindsActivity.this, ContactListListenerService.class));
 					mContactsManager.deleteSavedSelectedContacts();
 					new AsyncDisconnectionTask(PickFreindsActivity.this).execute((Void[])null);
 					//					if (choices2[0]) {

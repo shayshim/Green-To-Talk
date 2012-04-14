@@ -38,7 +38,6 @@ import android.widget.Toast;
 public class SigninActivity extends Activity {
 	public static final String PARAM_PASSWORD = "password";
 	public static final String PARAM_USERNAME = "username";
-	public static final String GMAIL_DOMAIN = "gmail.com";
 	public static final String USER_DISCONNECTED = "user_disconnected";
 	private static final String TAG = "AuthenticatorActivity";
 
@@ -100,21 +99,20 @@ public class SigninActivity extends Activity {
 	 * the server for authentication.
 	 */
 	private void handleLogin() {
-		getSharedPreferences(ContactsManager.SAVED_SELECTED_CONTACTS, MODE_PRIVATE).edit().clear().apply();
+		getSharedPreferences(PickFreindsActivity.SAVED_SELECTED_CONTACTS, MODE_PRIVATE).edit().clear().apply();
 		mUsername = mUsernameEdit.getText().toString();
 		mPassword = mPasswordEdit.getText().toString();
 		if (TextUtils.isEmpty(mUsername) || TextUtils.isEmpty(mPassword)) {
 			mMessage.setText(getMessage());
 		} 
-		else if (!ConnectionStatusService.isConnectedToInternet(this)) {
+		else if (!ContactListListenerService.isConnectedToInternet(this)) {
 			Toast.makeText(getApplicationContext(), "No internet connection", Toast.LENGTH_LONG);
 			Log.i(TAG, "No internet connection");
 			mMessage.setText("No internet connection");
 		}
 		else {
-			String email = (mUsername.endsWith("@"+GMAIL_DOMAIN))? mUsername : mUsername+"@"+GMAIL_DOMAIN; 
 			// Start authenticating...
-			new AsyncConnectionTask(this, true).execute(email, mPassword);
+			new AsyncConnectionTask(this, true).execute(mUsername, mPassword);
 		}
 	}
 
@@ -142,7 +140,6 @@ public class SigninActivity extends Activity {
 				edit.apply();
 			}
 			pickFreindsActivity();
-			startService(new Intent(this, ConnectionStatusService.class));
 		} else {
 			Log.e(TAG, "onAuthenticationResult: failed to authenticate");
 			if (!mApplication.isAccountConfigured() || isNewUser()) {

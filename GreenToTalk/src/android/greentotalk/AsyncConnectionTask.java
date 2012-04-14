@@ -16,8 +16,10 @@ public class AsyncConnectionTask extends AsyncTask<String, Void, Boolean> {
 	private final Context mContext;
 	private SynchronizedConnectionManager mConnectionManager;
 	private boolean mShowProgressDialog;
+	private static final String TAG = "AsyncConnectionTask";
 
 	public AsyncConnectionTask(Context context, boolean showProgressDialog) {
+		Log.i(TAG, "Constructor...");
 		mContext = context;
 		mShowProgressDialog = showProgressDialog;
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
@@ -59,8 +61,10 @@ public class AsyncConnectionTask extends AsyncTask<String, Void, Boolean> {
 				((Activity) mContext).finish();
 		}
 		else {
-			if (mContext instanceof ConnectionStatusService) {
-				((ConnectionStatusService) mContext).sendBroadcast(ConnectionStatusService.ADD_CONTACTS_LISTENER);
+			Log.i(TAG, "onPostExecute: success is "+success);
+			if (success  &&  mContext instanceof ContactListListenerService) {
+				((ContactListListenerService)mContext).addListeners();
+				((ContactListListenerService)mContext).setIsTryingReconnect(false);
 			}
 		}
 	}
@@ -69,6 +73,7 @@ public class AsyncConnectionTask extends AsyncTask<String, Void, Boolean> {
 	protected Boolean doInBackground(String... strings) {
 		String username = strings[0];
 		String password = strings[1];
+		Log.i(TAG, "doInBackground");
 		return mConnectionManager.connectAndRetry(username, password);
 	}
 

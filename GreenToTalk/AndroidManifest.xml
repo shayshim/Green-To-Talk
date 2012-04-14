@@ -28,8 +28,8 @@
             </intent-filter>
         </activity>
         <activity android:name=".PickFreindsActivity" android:configChanges="keyboardHidden|orientation"/>
-        <service android:enabled="true" android:name=".NotificationService" />
         <service android:enabled="true" android:name=".ContactListListenerService" />
+        <service android:enabled="true" android:name=".ContactListListenerServiceOld" />
         <service android:enabled="true" android:name=".ConnectionStatusService" />
     </application>
     <uses-sdk

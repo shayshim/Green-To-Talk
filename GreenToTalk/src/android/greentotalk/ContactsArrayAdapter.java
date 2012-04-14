@@ -63,7 +63,7 @@ public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
         	holder.mode.setImageResource(R.drawable.red_b_smaller4);
         }
         else if (mContactsManager.getModeAt(position) == Contact.UNAVAILABLE) {
-        	holder.mode.setImageResource(R.drawable.orange_w_smaller3);
+        	holder.mode.setImageResource(R.drawable.grey_b_smaller1);
         }
         
         holder.select.setChecked(false);

@@ -21,7 +21,6 @@ import android.util.Log;
 public class ContactsManager {
 
 	private SharedPreferences mSavedSelectedContacts;
-	public static final String SAVED_SELECTED_CONTACTS = "android.greentotalk.SAVED_SELECTED_CONTACTS";
 	private static final String TAG = "ContactManager";
 	private List<Contact> mContactsList;
 	private Map<String, Contact> mContactsMap;
@@ -39,11 +38,12 @@ public class ContactsManager {
 	}
 
 	public void updateContactList() {
+		clearContacts();
 		for (RosterEntry entry: mConnectionManager.getEntries()) {
 			String email = entry.getUser();
-			if (! StringUtils.parseServer(email).equals(SigninActivity.GMAIL_DOMAIN))
+			if (! StringUtils.parseServer(email).equals(SynchronizedConnectionManager.GMAIL_DOMAIN))
 				continue;
-			if (email.equals(mConnectionManager.getUsername()))
+			if (email.equals(mConnectionManager.getUsernameEmail()))
 				continue;
 			Presence presence = mConnectionManager.getPresence(email);
 			if (presence == null)
@@ -75,7 +75,7 @@ public class ContactsManager {
 
 	public void updateContactList(String email) {
 		assert(email!=null);
-		if (email.equals(SynchronizedConnectionManager.getInstance().getUsername()))
+		if (email.equals(SynchronizedConnectionManager.getInstance().getUsernameEmail()))
 			return;
 		Presence presence = mConnectionManager.getPresence(email);
 		if (presence == null)
@@ -153,14 +153,7 @@ public class ContactsManager {
 	}
 
 	public void sendSelectedContactsToNotificationService(Context context) {
-		Bundle bundle = new Bundle();
-		Intent intent = new Intent(context, NotificationService.class);
-		Set<String> emails = mSelectedContacts.keySet();
-		for (String email: emails) {
-			bundle.putString(email, mContactsMap.get(email).getName());
-		}
-		intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
-		context.startService(intent);
+		
 	}
 
 	public void setOppositeSelection(String email) {
@@ -194,5 +187,9 @@ public class ContactsManager {
 		Editor edit = mSavedSelectedContacts.edit();
 		edit.clear();
 		edit.apply();
+	}
+	
+	Set<String> getAllEmails() {
+		return mSelectedContacts.keySet();
 	}
 }
