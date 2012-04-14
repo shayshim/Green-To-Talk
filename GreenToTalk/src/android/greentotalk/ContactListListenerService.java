@@ -2,6 +2,7 @@ package android.greentotalk;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,6 +36,9 @@ public class ContactListListenerService extends Service {
 	private static final String TAG = "ContactListListenerService";
 	public static final String START_UPDATE_CONTACT_LIST = "android.greentotalk.START_UPDATE_CONTACT_LIST";
 	public static final String STOP_UPDATE_CONTACT_LIST = "android.greentotalk.STOP_UPDATE_CONTACT_LIST";
+	public static final String CONNECTION_TYPE_MOBILE="MOBILE";
+	public static final String CONNECTION_TYPE_WIFI="WIFI";
+	
 	private Map<String, String> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionManager;
 	private SharedPreferences mSettings;
@@ -46,13 +50,22 @@ public class ContactListListenerService extends Service {
 	private UpdateContactListListener mUpdateContactListListener;
 	private Object mAddRemoveListenersLock;
 	private Object mForegroundLock;
-
+	private String mPrevConnectionType;
+	
 	private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
+		
 		@Override
 		public void onReceive(Context context, Intent intent) {
-			boolean isConnected = isConnectedToInternet(context);
-			Log.i(TAG, "Connection status is "+isConnected);
+			NetworkInfo info = getNetworkInfo(ContactListListenerService.this);
+			boolean isConnected = isConnectedToInternet(info);
+			Log.i(TAG, "Connection status is "+isConnected+", mPrevConnectionType="+mPrevConnectionType);
 			if (isConnected) {
+				if (connectionTypeSwitch(info, mPrevConnectionType)) {
+					Log.i(TAG, "CONNECTION TYPE SWITCH: from "+mPrevConnectionType+" to "+info.getTypeName());
+					mPrevConnectionType = info.getTypeName();
+					removeListeners();
+					mConnectionManager.removeOldConnection();
+				}
 				tryReconnect();
 			}
 			else {
@@ -85,6 +98,8 @@ public class ContactListListenerService extends Service {
 		mSelectedContacts = new HashMap<String, String>(); // need even empty map before adding roster listener
 		IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
+		NetworkInfo info = getNetworkInfo(this);
+		mPrevConnectionType = info.getTypeName();
 		registerReceiver(mBroadcastReceiver, intentFilter);
 		addListeners();
 	}
@@ -129,9 +144,21 @@ public class ContactListListenerService extends Service {
 	private String getNamesString(String excludeName) {
 		String names = "";
 		List<String> list = new ArrayList<String>(mSelectedContacts.values());
-		Collections.sort(list);
+		Collections.sort(list, new Comparator<String>() {
+			@Override
+			public int compare(String lhs, String rhs) {
+				return lhs.toLowerCase().compareTo(rhs.toLowerCase());
+			}
+		});
 		for (String name: list) {
 			if (!name.equals(excludeName)) {
+				int index = name.indexOf(' ');
+				if (index > -1) {
+					name = name.substring(0, index);
+				}
+				else if ((index = name.indexOf('@')) > -1) {
+					name = name.substring(0, index);
+				}
 				names += name+", ";
 			}
 		}
@@ -172,6 +199,7 @@ public class ContactListListenerService extends Service {
 		if (vibrate()) {
 			notification.defaults |= Notification.DEFAULT_VIBRATE;
 		}
+		notification.defaults |= Notification.DEFAULT_LIGHTS;
 		notification.flags = Notification.FLAG_AUTO_CANCEL;
 		notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
 		if (mSelectedContacts.size() > 1)
@@ -195,15 +223,29 @@ public class ContactListListenerService extends Service {
 		return mSettings.getBoolean(GreenToTalkApplication.VIBRATE_KEY, false);
 	}
 
-
 	static boolean isConnectedToInternet(Context c) {
-		ConnectivityManager connectivityManager = (ConnectivityManager)c.getSystemService(Context.CONNECTIVITY_SERVICE);
-		NetworkInfo info = connectivityManager.getActiveNetworkInfo();
+		return isConnectedToInternet(getNetworkInfo(c));
+	}
+	
+	
+	static boolean isConnectedToInternet(NetworkInfo info) {
 		if (info!=null)
 			Log.i(TAG, "getExtraInfo="+info.getExtraInfo()+", getReason="+info.getReason()+", getSubtypeName="+info.getSubtypeName()+
 					", getTypeName="+info.getTypeName()+", isAvailable="+info.isAvailable()+", isConnected="+info.isConnected()+", isConnectedOrConnecting="+info.isConnectedOrConnecting()
 					+", isFailover="+info.isFailover()+", isRoaming="+info.isRoaming());
 		return info != null && info.isConnected();
+	}
+	
+	static boolean connectionTypeSwitch(NetworkInfo info, String prevType) {
+		return info == null || (CONNECTION_TYPE_MOBILE.toLowerCase().equals(info.getTypeName().toLowerCase()) && 
+				CONNECTION_TYPE_WIFI.toLowerCase().equals(prevType.toLowerCase())  ||
+				CONNECTION_TYPE_WIFI.toLowerCase().equals(info.getTypeName().toLowerCase()) && 
+				CONNECTION_TYPE_MOBILE.toLowerCase().equals(prevType.toLowerCase()));
+	}
+	
+	static NetworkInfo getNetworkInfo(Context c) {
+		ConnectivityManager connectivityManager = (ConnectivityManager)c.getSystemService(Context.CONNECTIVITY_SERVICE);
+		return connectivityManager.getActiveNetworkInfo();
 	}
 
 	void addListeners() {
