@@ -22,9 +22,12 @@ public class SynchronizedConnectionManager {
 	boolean mConnected;
 	public static final String GMAIL_DOMAIN = "gmail.com";
 	private static final String TAG = "SynchronizedConnectionManager";
+	private boolean mDisconnecting;
 
 	private SynchronizedConnectionManager() {
+		Log.i(TAG, "--------------------> CREATING NEW  *SynchronizedConnectionManager*  INSTANCE");
 		mConnected = false;
+		mDisconnecting = false;
 	}
 
 	private XMPPConnection getNewConnection() {
@@ -36,12 +39,20 @@ public class SynchronizedConnectionManager {
 		mConnected = false;
 		return connection;
 	}
+	
+	public void setDisconnecting(boolean disconnecting) {
+		mDisconnecting = disconnecting;
+	}
+	
+	public boolean isDisconnecting() {
+		return mDisconnecting;
+	}
 
-	boolean connectAndRetry(String username, String password) {
+	public synchronized boolean connectAndRetry(String username, String password) {
 		int retries = 3;
 		boolean result = false;
 		while (!result  &&  retries > 0) {
-			result = connect(username, password);
+			result = connectUnsync(username, password);
 			Log.i(TAG, "after connect result is "+result);
 			retries--;
 		}
@@ -63,13 +74,13 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized void addConnectionListener(ConnectionListener listener) {
-		if (isConnected()) {
+		if (isConnectedUnsync()) {
 			mConnection.addConnectionListener(listener);
 		}
 	}
-
-	public synchronized boolean connect(String username, String password) {
-		if (isConnected()) {
+	
+	private boolean connectUnsync(String username, String password) {
+		if (isConnectedUnsync()) {
 			return true;
 		}
 		mUsernameEmail = (username.endsWith("@"+GMAIL_DOMAIN))? username : username+"@"+GMAIL_DOMAIN;
@@ -95,7 +106,7 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized void disconnect() {
-		if (isConnected()) {
+		if (isConnectedUnsync()) {
 			Log.i(TAG, "REAL DISCONNECTION...");
 			mConnection.disconnect();
 		}
@@ -103,16 +114,20 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized void addRosterListener(RosterListener rl) {
-		if (isConnected())
+		if (isConnectedUnsync())
 			mRoster.addRosterListener(rl);
 	}
 
 	public synchronized void sendPacket(Presence p) {
-		if (isConnected())
+		if (isConnectedUnsync())
 			mConnection.sendPacket(p);
 	}
 
 	public synchronized boolean isConnected() {
+		return isConnectedUnsync();
+	}
+	
+	private boolean isConnectedUnsync() {
 		Log.i(TAG, "mConnected="+mConnected+", mConnection="+mConnection);
 		if (mConnection != null)
 			Log.i(TAG, "mConnection.isConnected()="+mConnection.isConnected()+", mConnection.isAuthenticated()"+mConnection.isAuthenticated());
@@ -120,13 +135,13 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized void removeRosterListener(RosterListener rl) {
-		if (isConnected()) {
+		if (isConnectedUnsync()) {
 			mRoster.removeRosterListener(rl);
 		}
 	}
 
 	public synchronized Collection<RosterEntry> getEntries() {
-		if (!isConnected())
+		if (!isConnectedUnsync())
 			return new ArrayList<RosterEntry>();
 		return mRoster.getEntries();
 	}
@@ -136,7 +151,7 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized Presence getPresence(String email) {
-		if (!isConnected())
+		if (!isConnectedUnsync())
 			return null;
 		return mConnection.getRoster().getPresence(email);
 	}
@@ -147,7 +162,7 @@ public class SynchronizedConnectionManager {
 	}
 
 	public synchronized void removeConnectionListener(ConnectionListener listener) {
-		if (isConnected()) {
+		if (isConnectedUnsync()) {
 			mConnection.removeConnectionListener(listener);
 		}
 	}

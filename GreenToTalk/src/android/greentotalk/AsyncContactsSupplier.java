@@ -10,10 +10,10 @@ import android.util.Log;
 
 public class AsyncContactsSupplier extends AsyncTask<Void, Void, Void> {
 	private ProgressDialog mProgressDialog;
-	private final PickFreindsActivity mContext;
+	private final PickContactsActivity mContext;
 	private ContactsManager mContactsManager;
 
-	public AsyncContactsSupplier(PickFreindsActivity context, ContactsManager cm) {
+	public AsyncContactsSupplier(PickContactsActivity context, ContactsManager cm) {
 		mContext = context;
 		mContactsManager = cm;
 		mProgressDialog = new ProgressDialog(context);

@@ -11,11 +11,11 @@ import android.widget.TextView;
 public class ContactsArrayAdapter extends ArrayAdapter<Contact> {
 	
 	private LayoutInflater mInflater;
-	private PickFreindsActivity mContext;
+	private PickContactsActivity mContext;
 	private ContactsManager mContactsManager;
 	private static final String TAG = "ContactsArrayAdapter";
 	
-	public ContactsArrayAdapter(PickFreindsActivity context) {
+	public ContactsArrayAdapter(PickContactsActivity context) {
 		super(context, R.layout.rowlayout, context.getContactsManager().getContactList());
 		mContactsManager = context.getContactsManager();
 		// Cache the LayoutInflate to avoid asking for a new one each time.

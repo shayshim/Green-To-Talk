@@ -27,7 +27,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity android:name=".PickFreindsActivity" android:configChanges="keyboardHidden|orientation"/>
+        <activity android:name=".PickContactsActivity" android:configChanges="keyboardHidden|orientation"/>
         <service android:enabled="true" android:name=".ContactListListenerService" />
         <service android:enabled="true" android:name=".ContactListListenerServiceOld" />
         <service android:enabled="true" android:name=".ConnectionStatusService" />

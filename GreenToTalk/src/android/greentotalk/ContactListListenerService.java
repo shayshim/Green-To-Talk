@@ -24,9 +24,11 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
+import android.provider.MediaStore.Audio;
 import android.util.Log;
 
 public class ContactListListenerService extends Service {
@@ -39,6 +41,8 @@ public class ContactListListenerService extends Service {
 	public static final String CONNECTION_TYPE_MOBILE="MOBILE";
 	public static final String CONNECTION_TYPE_WIFI="WIFI";
 
+	private static boolean isForeground = false;
+	private static Object foregroundLock = new Object();
 	private Map<String, String> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionManager;
 	private SharedPreferences mSettings;
@@ -49,13 +53,15 @@ public class ContactListListenerService extends Service {
 	private SelectedContactsListener mSelectedContactsListener;
 	private UpdateContactListListener mUpdateContactListListener;
 	private Object mAddRemoveListenersLock;
-	private Object mForegroundLock;
 	private String mPrevConnectionType;
 
 	private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 
 		@Override
 		public void onReceive(Context context, Intent intent) {
+			if (mConnectionManager.isDisconnecting()) {
+				return;
+			}
 			NetworkInfo info = getNetworkInfo(ContactListListenerService.this);
 			boolean isConnected = isConnectedToInternet(info);
 			Log.i(TAG, "Connection status is "+isConnected+", mPrevConnectionType="+mPrevConnectionType);
@@ -71,28 +77,26 @@ public class ContactListListenerService extends Service {
 			else {
 				removeListeners();
 				mConnectionManager.removeOldConnection();
-				Intent i = new Intent(PickFreindsActivity.UPDATE_LIST_BROADCAST);
-				i.putExtra(PickFreindsActivity.UPDATE_LIST_CONTENT, true);
+				Intent i = new Intent(PickContactsActivity.UPDATE_LIST_BROADCAST);
+				i.putExtra(PickContactsActivity.UPDATE_LIST_CONTENT, true);
 				sendBroadcast(i);
-				synchronized (mForegroundLock) {
-					if (!mIsForeground) {
+				synchronized (foregroundLock) {
+					if (!isForeground) {
 						ContactListListenerService.this.stopSelf();
 					}
 				}
 			}
 		}
 	};
-	private boolean mIsForeground;
 
 	@Override
 	public void onCreate() {
 		Log.i(TAG, "onCreate...");
 		mAddRemoveListenersLock = new Object();
 		mTryingReconnectLock = new Object();
-		mForegroundLock = new Object();
 		mIsTryingReconnect = false;
-		mIsForeground = false;
-		mSavedSelectedContacts = getSharedPreferences(PickFreindsActivity.SAVED_SELECTED_CONTACTS, MODE_PRIVATE);
+		isForeground = false;
+		mSavedSelectedContacts = getSharedPreferences(PickContactsActivity.SAVED_SELECTED_CONTACTS, MODE_PRIVATE);
 		GreenToTalkApplication application= (GreenToTalkApplication)getApplication();
 		mSettings = PreferenceManager.getDefaultSharedPreferences(application);
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
@@ -110,10 +114,17 @@ public class ContactListListenerService extends Service {
 		Log.i(TAG, "Received intent: " + intent);
 		if (intent != null) {
 			if (intent.getBooleanExtra(START_UPDATE_CONTACT_LIST, false)) {
+				mConnectionManager.addRosterListener(mUpdateContactListListener);
+				Log.i(TAG, "Added mUpdateContactListListener");
+				return START_STICKY;
+			}
+			else if (intent.getBooleanExtra(STOP_UPDATE_CONTACT_LIST, false)) {
+				mConnectionManager.removeRosterListener(mUpdateContactListListener);
+				Log.i(TAG, "Removed mUpdateContactListListener");
 				return START_STICKY;
 			}
 			Map<String, String> selectedContacts = new HashMap<String, String>();
-			Bundle bundle = intent.getBundleExtra(PickFreindsActivity.SAVED_SELECTED_CONTACTS);
+			Bundle bundle = intent.getBundleExtra(PickContactsActivity.SAVED_SELECTED_CONTACTS);
 			Set<String> emails = bundle.keySet();  
 			for (String email: emails) {
 				selectedContacts.put(email, bundle.getString(email));
@@ -135,7 +146,7 @@ public class ContactListListenerService extends Service {
 		String operation = (isStarted)? "Start" : "Continue";
 		Notification notification = new Notification(R.drawable.binoculas_watching, operation+" watching "+names,
 				System.currentTimeMillis());
-		Intent notificationIntent = new Intent(this, PickFreindsActivity.class);
+		Intent notificationIntent = new Intent(this, PickContactsActivity.class);
 		PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent, 0);
 		notification.setLatestEventInfo(this, "Green To Talk",
 				"Watching "+names, pendingIntent);
@@ -172,6 +183,8 @@ public class ContactListListenerService extends Service {
 		Log.i(TAG, "onDestroy...");
 		removeListeners();
 		unregisterReceiver(mBroadcastReceiver);
+		isForeground = false;
+		Log.i(TAG, "onDestroy... Done");
 	}
 
 	private void makeAndroidNotification(String email, Mode mode) {
@@ -196,13 +209,19 @@ public class ContactListListenerService extends Service {
 
 		notification.setLatestEventInfo(context, contentTitle, contentText, contentIntent);
 		if (makeSound()) {
-			notification.defaults |= Notification.DEFAULT_SOUND;
+			String chosenSound = mSettings.getString(PickContactsActivity.NOTIFICATION_SOUND_URI, null);
+			if (chosenSound==null) {
+				notification.defaults |= Notification.DEFAULT_SOUND;
+			}
+			else {
+				notification.sound = Uri.parse(chosenSound);
+			}
 		}
 		if (vibrate()) {
 			notification.defaults |= Notification.DEFAULT_VIBRATE;
 		}
 		notification.defaults |= Notification.DEFAULT_LIGHTS;
-		notification.flags = Notification.FLAG_AUTO_CANCEL;
+		notification.flags |= Notification.FLAG_AUTO_CANCEL;
 		notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
 		if (mSelectedContacts.size() > 1)
 			notificationManager.notify(ONGOING_NOTIFICATION, getForegroundNotification(getNamesString(name), false));				
@@ -256,7 +275,6 @@ public class ContactListListenerService extends Service {
 			mUpdateContactListListener = new UpdateContactListListener(this);
 			mConnectionListener = new KeepAliveConnectionListener(this);
 			mConnectionManager.addRosterListener(mSelectedContactsListener);
-			mConnectionManager.addRosterListener(mUpdateContactListListener);
 			mConnectionManager.addConnectionListener(mConnectionListener);
 		}
 	}
@@ -270,6 +288,9 @@ public class ContactListListenerService extends Service {
 	}
 
 	void tryReconnect() {
+		if (mConnectionManager.isDisconnecting()) {
+			return;
+		}
 		synchronized (mTryingReconnectLock) {
 			Log.i(TAG, "mConnectionManager.isConnected="+mConnectionManager.isConnected());
 			if (!mConnectionManager.isConnected()  &&  !mIsTryingReconnect) {
@@ -289,14 +310,14 @@ public class ContactListListenerService extends Service {
 	}
 
 	void handleSelectedContact(Presence presence, String email) {
-		Log.i(this.getClass().getName(),"Presence changed for SELECTED: " + email + " " + presence);
+//		Log.i(this.getClass().getName(),"Presence changed for SELECTED: " + email + " " + presence);
 		if (presence.getType() == Presence.Type.available  &&  
 				(presence.getMode() == null  ||  presence.getMode() == Presence.Mode.available  ||  
 				(presence.getMode() == Presence.Mode.dnd  &&  isDndAsAvailable()))) {
 			makeAndroidNotification(email, presence.getMode());
 			mSelectedContacts.remove(email);
-			final Intent intent = new Intent(PickFreindsActivity.UPDATE_LIST_BROADCAST);
-			intent.putExtra(PickFreindsActivity.UNSELECT_CONTACT, true);
+			final Intent intent = new Intent(PickContactsActivity.UPDATE_LIST_BROADCAST);
+			intent.putExtra(PickContactsActivity.UNSELECT_CONTACT, true);
 			intent.putExtra(Contact.EMAIL, email);
 			Editor editor = mSavedSelectedContacts.edit();
 			editor.remove(email);
@@ -314,14 +335,24 @@ public class ContactListListenerService extends Service {
 	}
 
 	private void startForeground(Notification notification) {
-		synchronized (mForegroundLock) {
+		synchronized (foregroundLock) {
 			startForeground(ONGOING_NOTIFICATION, notification);
-			mIsForeground = true;
+			isForeground = true;
 		}
 	}
 
 	private void stopForeground() {
-		stopForeground(true);
-		mIsForeground = false;
+		synchronized (foregroundLock) {
+			stopForeground(true);
+			isForeground = false;
+		}
+	}
+
+	static boolean isForeGround() {
+		boolean result;
+		synchronized (foregroundLock) {
+			result = isForeground;
+		}
+		return result;
 	}
 }

@@ -59,6 +59,7 @@ public class SigninActivity extends Activity {
 	public void onCreate(Bundle icicle) {
 		super.onCreate(icicle);
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
+		mConnectionManager.setDisconnecting(false);
 		initializeUI();
 	}
 
@@ -66,8 +67,14 @@ public class SigninActivity extends Activity {
 	public void initializeUI() {
 		mApplication = (GreenToTalkApplication)getApplication();
 		if (mConnectionManager.isConnected()) {
-			// go to the pick friend activity
-			pickFreindsActivity();
+			startActivity(new Intent(this,PickContactsActivity.class));
+			finish();
+			return;
+		}
+		else if (ContactListListenerService.isForeGround()) {
+			Intent i = new Intent(this,PickContactsActivity.class);
+			i.putExtra(PickContactsActivity.CLEAR_LIST, true);
+			startActivity(i);
 			finish();
 			return;
 		}
@@ -99,7 +106,7 @@ public class SigninActivity extends Activity {
 	 * the server for authentication.
 	 */
 	private void handleLogin() {
-		getSharedPreferences(PickFreindsActivity.SAVED_SELECTED_CONTACTS, MODE_PRIVATE).edit().clear().apply();
+		getSharedPreferences(PickContactsActivity.SAVED_SELECTED_CONTACTS, MODE_PRIVATE).edit().clear().apply();
 		mUsername = mUsernameEdit.getText().toString();
 		mPassword = mPasswordEdit.getText().toString();
 		if (TextUtils.isEmpty(mUsername) || TextUtils.isEmpty(mPassword)) {
@@ -122,9 +129,7 @@ public class SigninActivity extends Activity {
 	 * 
 	 */
 
-	protected void pickFreindsActivity() {
-		startActivity(new Intent(this,PickFreindsActivity.class));
-	}
+		
 
 	/**
 	 * Called when the authentication process completes (see attemptLogin()).
@@ -139,7 +144,7 @@ public class SigninActivity extends Activity {
 				edit.putString(GreenToTalkApplication.ACCOUNT_PASSWORD_KEY, mPassword);
 				edit.apply();
 			}
-			pickFreindsActivity();
+			startActivity(new Intent(this,PickContactsActivity.class));
 		} else {
 			Log.e(TAG, "onAuthenticationResult: failed to authenticate");
 			if (!mApplication.isAccountConfigured() || isNewUser()) {
