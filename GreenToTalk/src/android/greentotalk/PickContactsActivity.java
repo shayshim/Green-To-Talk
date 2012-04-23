@@ -254,6 +254,8 @@ public class PickContactsActivity extends ListActivity {
 	    	c = (CheckBox) layout.findViewById(R.id.checkbox_make_sound);
 	    	c.setChecked(mSettings.getBoolean(GreenToTalkApplication.MAKE_SOUND_KEY, false));
 	    	mChangeSoundButton.setEnabled(c.isChecked());
+	    	c = (CheckBox) layout.findViewById(R.id.checkbox_auto_clear_notification);
+	    	c.setChecked(mSettings.getBoolean(GreenToTalkApplication.AUTO_CLEAR_NOTIFICATION, false));
 	    	
 	    	title = getString(R.string.settings_title, versionname);
 			builder.setTitle(title);
@@ -314,6 +316,9 @@ public class PickContactsActivity extends ListActivity {
         }
 		if (((CheckBox) v).getId() == R.id.checkbox_vibrate) {
 			editor.putBoolean(GreenToTalkApplication.VIBRATE_KEY, ((CheckBox) v).isChecked());
+        }
+		if (((CheckBox) v).getId() == R.id.checkbox_auto_clear_notification) {
+			editor.putBoolean(GreenToTalkApplication.AUTO_CLEAR_NOTIFICATION, ((CheckBox) v).isChecked());
         }
 		editor.apply();
     }

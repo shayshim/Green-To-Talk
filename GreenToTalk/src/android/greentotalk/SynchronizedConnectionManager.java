@@ -128,9 +128,9 @@ public class SynchronizedConnectionManager {
 	}
 	
 	private boolean isConnectedUnsync() {
-		Log.i(TAG, "mConnected="+mConnected+", mConnection="+mConnection);
-		if (mConnection != null)
-			Log.i(TAG, "mConnection.isConnected()="+mConnection.isConnected()+", mConnection.isAuthenticated()"+mConnection.isAuthenticated());
+//		Log.i(TAG, "mConnected="+mConnected+", mConnection="+mConnection);
+//		if (mConnection != null)
+//			Log.i(TAG, "mConnection.isConnected()="+mConnection.isConnected()+", mConnection.isAuthenticated()"+mConnection.isAuthenticated());
 		return mConnected && mConnection!=null && mConnection.isConnected() && mConnection.isAuthenticated();
 	}
 

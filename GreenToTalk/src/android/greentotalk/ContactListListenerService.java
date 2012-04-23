@@ -26,9 +26,9 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
-import android.provider.MediaStore.Audio;
 import android.util.Log;
 
 public class ContactListListenerService extends Service {
@@ -54,6 +54,8 @@ public class ContactListListenerService extends Service {
 	private UpdateContactListListener mUpdateContactListListener;
 	private Object mAddRemoveListenersLock;
 	private String mPrevConnectionType;
+	private ClearNotificationTask mClearNotificationTask;
+	private Handler mClearNotificationHandler;
 
 	private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
 
@@ -64,13 +66,18 @@ public class ContactListListenerService extends Service {
 			}
 			NetworkInfo info = getNetworkInfo(ContactListListenerService.this);
 			boolean isConnected = isConnectedToInternet(info);
-			Log.i(TAG, "Connection status is "+isConnected+", mPrevConnectionType="+mPrevConnectionType);
+			Log.i(TAG, "onReceive: Connection status is "+isConnected+", mPrevConnectionType="+mPrevConnectionType);
 			if (isConnected) {
-				if (connectionTypeSwitch(info, mPrevConnectionType)) {
-					Log.i(TAG, "*** CONNECTION TYPE SWITCH: from "+mPrevConnectionType+" to "+info.getTypeName());
-					mPrevConnectionType = info.getTypeName();
-					removeListeners();
-					mConnectionManager.removeOldConnection();
+				synchronized (mTryingReconnectLock) {
+					if (mIsTryingReconnect) {
+						return;
+					}
+					if (connectionTypeSwitch(info, mPrevConnectionType)) {
+						Log.i(TAG, "onReceive: *** CONNECTION TYPE SWITCH: from "+mPrevConnectionType+" to "+info.getTypeName());
+						mPrevConnectionType = info.getTypeName();
+						removeListeners();
+						mConnectionManager.removeOldConnection();
+					}
 				}
 				tryReconnect();
 			}
@@ -104,9 +111,11 @@ public class ContactListListenerService extends Service {
 		IntentFilter intentFilter = new IntentFilter();
 		intentFilter.addAction(ConnectivityManager.CONNECTIVITY_ACTION);
 		NetworkInfo info = getNetworkInfo(this);
-		mPrevConnectionType = info.getTypeName();
+		mPrevConnectionType = (info == null)? mPrevConnectionType : info.getTypeName();
 		registerReceiver(mBroadcastReceiver, intentFilter);
 		addListeners();
+		mClearNotificationTask = new ClearNotificationTask();
+		mClearNotificationHandler = new Handler();
 	}
 
 	@Override
@@ -190,8 +199,7 @@ public class ContactListListenerService extends Service {
 	private void makeAndroidNotification(String email, Mode mode) {
 		String name = mSelectedContacts.get(email);
 		String presenceStr = "available";
-		String ns = Context.NOTIFICATION_SERVICE;
-		final NotificationManager notificationManager = (NotificationManager) getSystemService(ns);
+		final NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		int icon = R.drawable.logo2;
 		if (mode == Presence.Mode.dnd) {
 			icon = R.drawable.red_b;
@@ -222,7 +230,12 @@ public class ContactListListenerService extends Service {
 		}
 		notification.defaults |= Notification.DEFAULT_LIGHTS;
 		notification.flags |= Notification.FLAG_AUTO_CANCEL;
+		mClearNotificationHandler.removeCallbacks(mClearNotificationTask);
 		notificationManager.notify(GREEN_NOTIFICATION_ID, notification);
+		if (autoClearNotification()) {
+			mClearNotificationHandler.postDelayed(mClearNotificationTask, 30000);
+		}
+
 		if (mSelectedContacts.size() > 1)
 			notificationManager.notify(ONGOING_NOTIFICATION, getForegroundNotification(getNamesString(name), false));				
 	}
@@ -242,6 +255,10 @@ public class ContactListListenerService extends Service {
 
 	boolean vibrate() {
 		return mSettings.getBoolean(GreenToTalkApplication.VIBRATE_KEY, false);
+	}
+	
+	boolean autoClearNotification() {
+		return mSettings.getBoolean(GreenToTalkApplication.AUTO_CLEAR_NOTIFICATION, false);
 	}
 
 	static boolean isConnectedToInternet(Context c) {
@@ -292,7 +309,7 @@ public class ContactListListenerService extends Service {
 			return;
 		}
 		synchronized (mTryingReconnectLock) {
-			Log.i(TAG, "mConnectionManager.isConnected="+mConnectionManager.isConnected());
+			Log.i(TAG, "tryReconnect: mConnectionManager.isConnected="+mConnectionManager.isConnected()+", mIsTryingReconnect="+mIsTryingReconnect);
 			if (!mConnectionManager.isConnected()  &&  !mIsTryingReconnect) {
 				mIsTryingReconnect = true;
 				boolean isConnected = ContactListListenerService.isConnectedToInternet(ContactListListenerService.this);
@@ -310,7 +327,7 @@ public class ContactListListenerService extends Service {
 	}
 
 	void handleSelectedContact(Presence presence, String email) {
-//		Log.i(this.getClass().getName(),"Presence changed for SELECTED: " + email + " " + presence);
+		//		Log.i(this.getClass().getName(),"Presence changed for SELECTED: " + email + " " + presence);
 		if (presence.getType() == Presence.Type.available  &&  
 				(presence.getMode() == null  ||  presence.getMode() == Presence.Mode.available  ||  
 				(presence.getMode() == Presence.Mode.dnd  &&  isDndAsAvailable()))) {
@@ -354,5 +371,13 @@ public class ContactListListenerService extends Service {
 			result = isForeground;
 		}
 		return result;
+	}
+
+	private class ClearNotificationTask implements Runnable {
+		@Override
+		public void run() {
+			NotificationManager notificationManager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+			notificationManager.cancel(GREEN_NOTIFICATION_ID);
+		}
 	}
 }

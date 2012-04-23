@@ -90,7 +90,7 @@ public class ContactsManager {
 			mContactsList.add(contact);
 		}
 		Collections.sort(mContactsList);
-		Log.i(TAG, "updateUI for: "+contact);
+//		Log.i(TAG, "updateUI for: "+contact);
 	}
 
 	public List<Contact> getContactList() {

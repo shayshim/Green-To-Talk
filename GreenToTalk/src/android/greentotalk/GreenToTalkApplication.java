@@ -20,6 +20,7 @@ public class GreenToTalkApplication extends Application {
 	public static final String DND_AS_AVAILABLE_KEY = "android.greentotalk.dnd_as_available";
 	public static final String MAKE_SOUND_KEY = "android.greentotalk.MAKE_SOUND_KEY";
 	public static final String VIBRATE_KEY = "android.greentotalk.VIBRATE_KEY";
+	public static final String AUTO_CLEAR_NOTIFICATION = "android.greentotalk.AUTO_CLEAR_NOTIFICATION";
 	private boolean mIsAccountConfigured = false;
 	private static SharedPreferences mSettings;
 	private final PreferenceListener mPreferenceListener = new PreferenceListener();
@@ -83,6 +84,7 @@ public class GreenToTalkApplication extends Application {
 		Editor e = mSettings.edit();
 		e.clear().putBoolean(DND_AS_AVAILABLE_KEY, true);
 		e.putBoolean(MAKE_SOUND_KEY, true);
-		e.putBoolean(VIBRATE_KEY, true).apply();
+		e.putBoolean(AUTO_CLEAR_NOTIFICATION, true);
+		e.putBoolean(VIBRATE_KEY, false).apply();
 	}
 }
