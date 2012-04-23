@@ -40,7 +40,7 @@ public class ContactsManager {
 	public void updateContactList() {
 		for (RosterEntry entry: mConnectionManager.getEntries()) {
 			String email = entry.getUser();
-			if (! StringUtils.parseServer(email).equals(SynchronizedConnectionManager.GMAIL_DOMAIN))
+			if (! StringUtils.parseServer(email).equals(mConnectionManager.getDomain()))
 				continue;
 			if (email.equals(mConnectionManager.getUsernameEmail()))
 				continue;

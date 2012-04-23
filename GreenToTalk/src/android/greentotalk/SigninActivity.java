@@ -17,6 +17,7 @@
 package android.greentotalk;
 
 import android.app.Activity;
+import android.app.Service;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
@@ -29,6 +30,8 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -47,6 +50,8 @@ public class SigninActivity extends Activity {
 
 	private String mUsername;
 	private String mPassword;
+	private RadioButton mServiceFacebookRadio;
+	private RadioButton mServiceGoogleRadio;
 	private EditText mUsernameEdit;
 	private GreenToTalkApplication mApplication;
 	private SharedPreferences mSettings;
@@ -56,16 +61,18 @@ public class SigninActivity extends Activity {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void onCreate(Bundle icicle) {
-		super.onCreate(icicle);
+	public void onCreate(Bundle bundle) {
+		super.onCreate(bundle);
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
 		mConnectionManager.setDisconnecting(false);
+		mApplication = (GreenToTalkApplication)getApplication();
+		mSettings = PreferenceManager.getDefaultSharedPreferences(mApplication);
+		mConnectionManager.setSettings(mSettings);
 		initializeUI();
 	}
 
 	//used in onCreate() and onConfigurationChanged() to set up the UI elements
 	public void initializeUI() {
-		mApplication = (GreenToTalkApplication)getApplication();
 		if (mConnectionManager.isConnected()) {
 			startActivity(new Intent(this,PickContactsActivity.class));
 			finish();
@@ -78,12 +85,15 @@ public class SigninActivity extends Activity {
 			finish();
 			return;
 		}
-		mSettings = PreferenceManager.getDefaultSharedPreferences(mApplication);
 		mUsername = mSettings.getString(GreenToTalkApplication.ACCOUNT_USERNAME_KEY, "");
 		mPassword = mSettings.getString(GreenToTalkApplication.ACCOUNT_PASSWORD_KEY, "");
 
 		setContentView(R.layout.login_activity);
-
+		mServiceFacebookRadio = (RadioButton) findViewById(R.id.radio_facebook);
+		mServiceGoogleRadio = (RadioButton) findViewById(R.id.radio_google);
+		String serviceName = mSettings.getString(GreenToTalkApplication.SERVICE_NAME, null);
+		mServiceGoogleRadio.setChecked(serviceName.equals(GreenToTalkApplication.SERVICE_NAME_GOOGLE));
+		mServiceFacebookRadio.setChecked(serviceName.equals(GreenToTalkApplication.SERVICE_NAME_FACEBOOK));
 		mMessage = (TextView) findViewById(R.id.message);
 		mUsernameEdit = (EditText) findViewById(R.id.username_edit);
 		mPasswordEdit = (EditText) findViewById(R.id.password_edit);
@@ -99,6 +109,15 @@ public class SigninActivity extends Activity {
 				handleLogin();
 			}
 		});
+	}
+	
+	public void onRadioButtonClicked(View v) {
+		if (((RadioButton)v).getId() == R.id.radio_google) {
+			mSettings.edit().putString(GreenToTalkApplication.SERVICE_NAME, GreenToTalkApplication.SERVICE_NAME_GOOGLE).apply();
+		}
+		else if (((RadioButton)v).getId() == R.id.radio_facebook) {
+			mSettings.edit().putString(GreenToTalkApplication.SERVICE_NAME, GreenToTalkApplication.SERVICE_NAME_FACEBOOK).apply();
+		}
 	}
 
 	/**
@@ -171,10 +190,11 @@ public class SigninActivity extends Activity {
 	private CharSequence getMessage() {
 		getString(R.string.label);
 		if (TextUtils.isEmpty(mUsername)) {
+			String service = (GreenToTalkApplication.SERVICE_NAME_GOOGLE.equals(mSettings.getString(GreenToTalkApplication.SERVICE_NAME, null)))? "Google" : "Facebook";
 			// If no username, then we ask the user to log in using an
 			// appropriate service.
-			final CharSequence msg =
-					getText(R.string.login_activity_newaccount_text);
+			final CharSequence msg = "Sign in to your "+service+" account";
+//					getText(R.string.login_activity_newaccount_text);
 			return msg;
 		}
 		if (TextUtils.isEmpty(mPassword)) {

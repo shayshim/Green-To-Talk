@@ -47,7 +47,7 @@ public class ContactListListenerService extends Service {
 	private SynchronizedConnectionManager mConnectionManager;
 	private SharedPreferences mSettings;
 	private SharedPreferences mSavedSelectedContacts;
-	private ConnectionListener mConnectionListener;
+//	private ConnectionListener mConnectionListener;
 	private Object mTryingReconnectLock;
 	private boolean mIsTryingReconnect;
 	private SelectedContactsListener mSelectedContactsListener;
@@ -290,9 +290,9 @@ public class ContactListListenerService extends Service {
 		synchronized (mAddRemoveListenersLock) {
 			mSelectedContactsListener = new SelectedContactsListener(this);
 			mUpdateContactListListener = new UpdateContactListListener(this);
-			mConnectionListener = new KeepAliveConnectionListener(this);
+//			mConnectionListener = new KeepAliveConnectionListener(this);
 			mConnectionManager.addRosterListener(mSelectedContactsListener);
-			mConnectionManager.addConnectionListener(mConnectionListener);
+//			mConnectionManager.addConnectionListener(mConnectionListener);
 		}
 	}
 
@@ -300,7 +300,7 @@ public class ContactListListenerService extends Service {
 		synchronized (mAddRemoveListenersLock) {
 			mConnectionManager.removeRosterListener(mSelectedContactsListener);
 			mConnectionManager.removeRosterListener(mUpdateContactListListener);
-			mConnectionManager.removeConnectionListener(mConnectionListener);
+//			mConnectionManager.removeConnectionListener(mConnectionListener);
 		}
 	}
 

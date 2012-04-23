@@ -11,6 +11,7 @@ import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smack.packet.Presence;
 
+import android.content.SharedPreferences;
 import android.util.Log;
 
 public class SynchronizedConnectionManager {
@@ -21,8 +22,11 @@ public class SynchronizedConnectionManager {
 	private Roster mRoster;
 	boolean mConnected;
 	public static final String GMAIL_DOMAIN = "gmail.com";
+	public static final String FACEBOOK_DOMAIN = "chat.facebook.com";
 	private static final String TAG = "SynchronizedConnectionManager";
 	private boolean mDisconnecting;
+	private SharedPreferences mSettings;
+	private static final int DEFUALT_PORT = 5222;
 
 	private SynchronizedConnectionManager() {
 		Log.i(TAG, "--------------------> CREATING NEW  *SynchronizedConnectionManager*  INSTANCE");
@@ -31,13 +35,29 @@ public class SynchronizedConnectionManager {
 	}
 
 	private XMPPConnection getNewConnection() {
-		ConnectionConfiguration config = new ConnectionConfiguration("talk.google.com", 5222, "gmail.com");
+		XMPPConnection connection = new XMPPConnection(getNewConnectionConfiguration());
+		mConnected = false;
+		return connection;
+	}
+	
+	private ConnectionConfiguration getNewConnectionConfiguration() {
+		ConnectionConfiguration config = null;
+		String serviceName = getServiceName();
+		if (serviceName.equals(GreenToTalkApplication.SERVICE_NAME_GOOGLE)) {
+			config = new ConnectionConfiguration("talk.google.com", DEFUALT_PORT, "gmail.com");
+		}
+		else if (serviceName.equals(GreenToTalkApplication.SERVICE_NAME_FACEBOOK)) {
+			config = new ConnectionConfiguration("chat.facebook.com", DEFUALT_PORT);
+			config.setSASLAuthenticationEnabled(true);
+		}
 		config.setTruststoreType("BKS");
 		config.setTruststorePath("/system/etc/security/cacerts.bks");
 		config.setSendPresence(false);
-		XMPPConnection connection = new XMPPConnection(config);
-		mConnected = false;
-		return connection;
+		return config;
+	}
+	
+	private String getServiceName() {
+		return mSettings.getString(GreenToTalkApplication.SERVICE_NAME, GreenToTalkApplication.SERVICE_NAME_GOOGLE);
 	}
 	
 	public void setDisconnecting(boolean disconnecting) {
@@ -79,11 +99,27 @@ public class SynchronizedConnectionManager {
 		}
 	}
 	
+	public String getDomain() {
+		if (getServiceName().equals(GreenToTalkApplication.SERVICE_NAME_GOOGLE)) {
+			return GMAIL_DOMAIN;
+		}
+		if (getServiceName().equals(GreenToTalkApplication.SERVICE_NAME_FACEBOOK)) {
+			return FACEBOOK_DOMAIN;
+		}
+		return null;
+	}
+	
 	private boolean connectUnsync(String username, String password) {
 		if (isConnectedUnsync()) {
 			return true;
 		}
-		mUsernameEmail = (username.endsWith("@"+GMAIL_DOMAIN))? username : username+"@"+GMAIL_DOMAIN;
+		String serviceName = getServiceName();
+		if (serviceName.equals(GreenToTalkApplication.SERVICE_NAME_GOOGLE)) {
+			mUsernameEmail = (username.contains("@"))? username : username+"@"+GMAIL_DOMAIN;
+		}
+		else if (serviceName.equals(GreenToTalkApplication.SERVICE_NAME_FACEBOOK)) {
+			mUsernameEmail = (username.contains("@"))? username.substring(0, username.indexOf('@')) : username;
+		}
 		mConnection = getNewConnection();
 		try {
 			// Connect to the server
@@ -169,5 +205,9 @@ public class SynchronizedConnectionManager {
 
 	public void setConnected(boolean b) {
 		mConnected = false;
+	}
+
+	public void setSettings(SharedPreferences settings) {
+		mSettings = settings;
 	}
 }

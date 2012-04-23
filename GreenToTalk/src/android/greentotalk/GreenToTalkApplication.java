@@ -17,6 +17,9 @@ public class GreenToTalkApplication extends Application {
 	public static final String ACCOUNT_USERNAME_KEY = "android.greentotalk.account_username";
 	/** Preference key for account password. */
 	public static final String ACCOUNT_PASSWORD_KEY = "android.greentotalk.account_password";
+	public static final String SERVICE_NAME = "android.greentotalk.SERVICE_NAME";
+	public static final String SERVICE_NAME_GOOGLE = "android.greentotalk.SERVICE_NAME_GOOGLE";
+	public static final String SERVICE_NAME_FACEBOOK = "android.greentotalk.SERVICE_NAME_FACEBOOK";
 	public static final String DND_AS_AVAILABLE_KEY = "android.greentotalk.dnd_as_available";
 	public static final String MAKE_SOUND_KEY = "android.greentotalk.MAKE_SOUND_KEY";
 	public static final String VIBRATE_KEY = "android.greentotalk.VIBRATE_KEY";
@@ -85,6 +88,8 @@ public class GreenToTalkApplication extends Application {
 		e.clear().putBoolean(DND_AS_AVAILABLE_KEY, true);
 		e.putBoolean(MAKE_SOUND_KEY, true);
 		e.putBoolean(AUTO_CLEAR_NOTIFICATION, true);
-		e.putBoolean(VIBRATE_KEY, false).apply();
+		e.putBoolean(VIBRATE_KEY, false);
+		e.putString(SERVICE_NAME, SERVICE_NAME_GOOGLE);
+		e.apply();
 	}
 }

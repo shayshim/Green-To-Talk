@@ -8,7 +8,7 @@
     android:layout_height="fill_parent">
     <ImageView android:id="@+id/log_as_logo" android:src="@drawable/logo5"
 			android:layout_width="fill_parent" android:layout_height="wrap_content"
-			android:layout_marginBottom="80px" 
+			android:layout_marginBottom="50px" 
 			android:layout_marginTop="50px" />
       <LinearLayout
           	android:layout_gravity="bottom"
@@ -16,6 +16,23 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:orientation="vertical">
+            <RadioGroup android:id="@+id/radio_service_name"
+      			android:layout_width="fill_parent"
+      			android:layout_height="wrap_content"
+      			android:orientation="horizontal">
+      			<RadioButton android:id="@+id/radio_facebook"
+          			android:layout_width="wrap_content"
+          			android:layout_height="wrap_content"
+          			android:text="Facebook"
+          			android:textColor="@color/black"
+          			android:onClick="onRadioButtonClicked"/>
+      			<RadioButton android:id="@+id/radio_google"
+          			android:layout_width="wrap_content"
+          			android:layout_height="wrap_content"
+          			android:text="Google"
+          			android:textColor="@color/black"
+          			android:onClick="onRadioButtonClicked"/>
+    		</RadioGroup>
             <TextView
                 android:id="@+id/message"
                 android:textColor="@color/black"
