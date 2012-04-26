@@ -82,13 +82,7 @@ public class PickContactsActivity extends ListActivity {
 			public void onClick(View v) {
 				if (SynchronizedConnectionManager.getInstance().isConnected()) {
 					mContactsManager.saveSelectedContacts();
-					Bundle bundle = new Bundle();
 					Intent intent = new Intent(PickContactsActivity.this, ContactListListenerService.class);
-					Set<String> emails = mContactsManager.getAllEmails();
-					for (String email: emails) {
-						bundle.putString(email, mContactsManager.getName(email));
-					}
-					intent.putExtra(SAVED_SELECTED_CONTACTS, bundle);
 					startService(intent);
 				}
 				finish();
@@ -256,6 +250,8 @@ public class PickContactsActivity extends ListActivity {
 	    	mChangeSoundButton.setEnabled(c.isChecked());
 	    	c = (CheckBox) layout.findViewById(R.id.checkbox_auto_clear_notification);
 	    	c.setChecked(mSettings.getBoolean(GreenToTalkApplication.AUTO_CLEAR_NOTIFICATION, false));
+	    	c = (CheckBox) layout.findViewById(R.id.checkbox_ongoing_notification);
+	    	c.setChecked(mSettings.getBoolean(GreenToTalkApplication.ONGOING_NOTIFICATION, false));
 	    	
 	    	title = getString(R.string.settings_title, versionname);
 			builder.setTitle(title);
@@ -310,15 +306,20 @@ public class PickContactsActivity extends ListActivity {
 		if (((CheckBox) v).getId() == R.id.checkbox_busy_as_available) {
 			editor.putBoolean(GreenToTalkApplication.DND_AS_AVAILABLE_KEY, ((CheckBox) v).isChecked());
 		}
-		if (((CheckBox) v).getId() == R.id.checkbox_make_sound) {
+		else if (((CheckBox) v).getId() == R.id.checkbox_make_sound) {
         	mChangeSoundButton.setEnabled(((CheckBox) v).isChecked());
         	editor.putBoolean(GreenToTalkApplication.MAKE_SOUND_KEY, ((CheckBox) v).isChecked());
         }
-		if (((CheckBox) v).getId() == R.id.checkbox_vibrate) {
+		else if (((CheckBox) v).getId() == R.id.checkbox_vibrate) {
 			editor.putBoolean(GreenToTalkApplication.VIBRATE_KEY, ((CheckBox) v).isChecked());
         }
-		if (((CheckBox) v).getId() == R.id.checkbox_auto_clear_notification) {
+		else if (((CheckBox) v).getId() == R.id.checkbox_auto_clear_notification) {
 			editor.putBoolean(GreenToTalkApplication.AUTO_CLEAR_NOTIFICATION, ((CheckBox) v).isChecked());
+        }
+		else if (((CheckBox) v).getId() == R.id.checkbox_ongoing_notification) {
+			editor.putBoolean(GreenToTalkApplication.ONGOING_NOTIFICATION, ((CheckBox) v).isChecked());
+			Intent intent = new Intent(PickContactsActivity.this, ContactListListenerService.class);
+			startService(intent);
         }
 		editor.apply();
     }

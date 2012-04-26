@@ -15,58 +15,40 @@ public class AsyncConnectionTask extends AsyncTask<String, Void, Boolean> {
 	private ProgressDialog mProgressDialog;
 	private final Context mContext;
 	private SynchronizedConnectionManager mConnectionManager;
-	private boolean mShowProgressDialog;
 	private static final String TAG = "AsyncConnectionTask";
 
-	public AsyncConnectionTask(Context context, boolean showProgressDialog) {
+	public AsyncConnectionTask(Context context) {
 		Log.i(TAG, "Constructor...");
 		mContext = context;
-		mShowProgressDialog = showProgressDialog;
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
-		if (showProgressDialog) { 
-			mProgressDialog = new ProgressDialog(context);
-			mProgressDialog.setMessage("Singing-in...");
-			mProgressDialog.setIndeterminate(true);
-			mProgressDialog.setCancelable(true);
-			final AsyncConnectionTask thread = this;
-			mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
-				public void onCancel(DialogInterface dialog) {
-					Log.i("ConnectionAsyncTask", "dialog cancel has been invoked");
-					if (thread != null) {
-						thread.cancel(false);
-					}
-					((Activity) mContext).finish();
-				}
-			});
-		}
+		mProgressDialog = new ProgressDialog(context);
+		mProgressDialog.setMessage("Signing in...");
+		mProgressDialog.setIndeterminate(true);
+		mProgressDialog.setCancelable(true);
+		mProgressDialog.setOnCancelListener(new DialogInterface.OnCancelListener() {
+			public void onCancel(DialogInterface dialog) {
+				Log.i("ConnectionAsyncTask", "dialog cancel has been invoked");
+				AsyncConnectionTask.this.cancel(false);
+				((Activity) mContext).finish();
+			}
+		});
 	}
 
 	@Override
 	protected void onPreExecute() {
-		if (mShowProgressDialog) {
-			mProgressDialog.show();
-		}
+		mProgressDialog.show();
 	}
 
 	@Override
 	protected void onPostExecute(final Boolean success) {
-		if (mShowProgressDialog) {
-			if (mContext instanceof SigninActivity) {
-				((SigninActivity)mContext).onAuthenticationResult(success.booleanValue());
-			}
-			if (mProgressDialog.isShowing()) {
-				mProgressDialog.dismiss();
-			}
-			if (success)
-				((Activity) mContext).finish();
+		if (mContext instanceof SigninActivity) {
+			((SigninActivity)mContext).onAuthenticationResult(success.booleanValue());
 		}
-		else {
-			Log.i(TAG, "onPostExecute: success is "+success);
-			if (success  &&  mContext instanceof ContactListListenerService) {
-				((ContactListListenerService)mContext).addListeners();
-				((ContactListListenerService)mContext).setIsTryingReconnect(false);
-			}
+		if (mProgressDialog.isShowing()) {
+			mProgressDialog.dismiss();
 		}
+		if (success)
+			((Activity) mContext).finish();
 	}
 
 	@Override

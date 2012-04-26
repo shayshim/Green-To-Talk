@@ -48,8 +48,8 @@ public class SynchronizedConnectionManager {
 		}
 		else if (serviceName.equals(GreenToTalkApplication.SERVICE_NAME_FACEBOOK)) {
 			config = new ConnectionConfiguration("chat.facebook.com", DEFUALT_PORT);
-			config.setSASLAuthenticationEnabled(true);
 		}
+		config.setSASLAuthenticationEnabled(true);
 		config.setTruststoreType("BKS");
 		config.setTruststorePath("/system/etc/security/cacerts.bks");
 		config.setSendPresence(false);

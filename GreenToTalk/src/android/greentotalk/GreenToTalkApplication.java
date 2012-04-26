@@ -24,6 +24,7 @@ public class GreenToTalkApplication extends Application {
 	public static final String MAKE_SOUND_KEY = "android.greentotalk.MAKE_SOUND_KEY";
 	public static final String VIBRATE_KEY = "android.greentotalk.VIBRATE_KEY";
 	public static final String AUTO_CLEAR_NOTIFICATION = "android.greentotalk.AUTO_CLEAR_NOTIFICATION";
+	public static final String ONGOING_NOTIFICATION = "android.greentotalk.ON_GOING_NOTIFICATION";
 	private boolean mIsAccountConfigured = false;
 	private static SharedPreferences mSettings;
 	private final PreferenceListener mPreferenceListener = new PreferenceListener();
@@ -90,6 +91,7 @@ public class GreenToTalkApplication extends Application {
 		e.putBoolean(AUTO_CLEAR_NOTIFICATION, true);
 		e.putBoolean(VIBRATE_KEY, false);
 		e.putString(SERVICE_NAME, SERVICE_NAME_GOOGLE);
+		e.putBoolean(ONGOING_NOTIFICATION, true);
 		e.apply();
 	}
 }

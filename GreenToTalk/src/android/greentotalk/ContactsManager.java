@@ -3,6 +3,7 @@ package android.greentotalk;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -12,10 +13,8 @@ import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.util.StringUtils;
 
 import android.content.Context;
-import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
-import android.os.Bundle;
 import android.util.Log;
 
 public class ContactsManager {
@@ -24,17 +23,16 @@ public class ContactsManager {
 	private static final String TAG = "ContactManager";
 	private List<Contact> mContactsList;
 	private Map<String, Contact> mContactsMap;
-	private Map<String, Boolean> mSelectedContacts;
+	private Set<String> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionManager;
 
 
-	@SuppressWarnings("unchecked")
 	public ContactsManager(SharedPreferences savedSelectedContacts) {
 		mContactsList = new ArrayList<Contact>();
 		mContactsMap = new HashMap<String, Contact>();
 		mConnectionManager = SynchronizedConnectionManager.getInstance();
 		mSavedSelectedContacts = savedSelectedContacts;
-		mSelectedContacts = (Map<String, Boolean>) mSavedSelectedContacts.getAll();
+		mSelectedContacts = new HashSet<String>((Set<String>) (mSavedSelectedContacts.getAll().keySet()));
 	}
 
 	public void updateContactList() {
@@ -90,7 +88,7 @@ public class ContactsManager {
 			mContactsList.add(contact);
 		}
 		Collections.sort(mContactsList);
-//		Log.i(TAG, "updateUI for: "+contact);
+		//		Log.i(TAG, "updateUI for: "+contact);
 	}
 
 	public List<Contact> getContactList() {
@@ -118,12 +116,12 @@ public class ContactsManager {
 	}
 
 	public boolean isSelectedAt(int position) {
-		return mSelectedContacts.containsKey(mContactsList.get(position).getEmail());
+		return mSelectedContacts.contains(mContactsList.get(position).getEmail());
 	}
 
 	public void setSelected(String email, boolean selected) {
 		if (selected) {
-			mSelectedContacts.put(email, true);
+			mSelectedContacts.add(email);
 		}
 		else {
 			mSelectedContacts.remove(email);
@@ -134,42 +132,29 @@ public class ContactsManager {
 		return mContactsMap.get(email).getName();
 	}
 
-	public void setSelectedAndSave(String email, boolean selected) {
-		setSelected(email, selected);
-		Editor edit = mSavedSelectedContacts.edit();
-		if (selected) {
-			edit.putBoolean(email, true);
-		}
-		else {
-			edit.remove(email);
-		}
-		edit.apply();
-	}
-
 	public void clearContacts() {
 		mContactsMap.clear();
 		mContactsList.clear();
 	}
 
 	public void sendSelectedContactsToNotificationService(Context context) {
-		
+
 	}
 
 	public void setOppositeSelection(String email) {
-		if (mSelectedContacts.containsKey(email)) {
+		if (mSelectedContacts.contains(email)) {
 			mSelectedContacts.remove(email);
 		}
 		else {
-			mSelectedContacts.put(email, true);
+			mSelectedContacts.add(email);
 		}
 	}
 
 	public void saveSelectedContacts() {
 		Editor editor = mSavedSelectedContacts.edit();
 		editor.clear();
-		Set<String> emails = mSelectedContacts.keySet();
-		for (String email: emails) {
-			editor.putBoolean(email, true);
+		for (String email: mSelectedContacts) {
+			editor.putString(email, getName(email));
 		}
 		editor.apply();
 	}
@@ -177,7 +162,7 @@ public class ContactsManager {
 	public void setOppositeSelection(Contact contact) {
 		setOppositeSelection(contact.getEmail());
 	}
-	
+
 	int countSavedSelectedContacts() {
 		return mSelectedContacts.size();
 	}
@@ -187,8 +172,8 @@ public class ContactsManager {
 		edit.clear();
 		edit.apply();
 	}
-	
+
 	Set<String> getAllEmails() {
-		return mSelectedContacts.keySet();
+		return mSelectedContacts;
 	}
 }

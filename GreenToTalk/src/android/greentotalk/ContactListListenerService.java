@@ -6,9 +6,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
-import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smack.packet.Presence.Mode;
 
@@ -25,11 +23,11 @@ import android.content.SharedPreferences.Editor;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
-import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.widget.Toast;
 
 public class ContactListListenerService extends Service {
 
@@ -41,13 +39,13 @@ public class ContactListListenerService extends Service {
 	public static final String CONNECTION_TYPE_MOBILE="MOBILE";
 	public static final String CONNECTION_TYPE_WIFI="WIFI";
 
-	private static boolean isForeground = false;
-	private static Object foregroundLock = new Object();
+	private boolean mForegroundStateEnabled = false;
+	private static boolean isWatching = false;
+	private static Object watchingLock = new Object();
 	private Map<String, String> mSelectedContacts;
 	private SynchronizedConnectionManager mConnectionManager;
 	private SharedPreferences mSettings;
 	private SharedPreferences mSavedSelectedContacts;
-//	private ConnectionListener mConnectionListener;
 	private Object mTryingReconnectLock;
 	private boolean mIsTryingReconnect;
 	private SelectedContactsListener mSelectedContactsListener;
@@ -87,8 +85,8 @@ public class ContactListListenerService extends Service {
 				Intent i = new Intent(PickContactsActivity.UPDATE_LIST_BROADCAST);
 				i.putExtra(PickContactsActivity.UPDATE_LIST_CONTENT, true);
 				sendBroadcast(i);
-				synchronized (foregroundLock) {
-					if (!isForeground) {
+				synchronized (watchingLock) {
+					if (!isWatching) {
 						ContactListListenerService.this.stopSelf();
 					}
 				}
@@ -102,7 +100,7 @@ public class ContactListListenerService extends Service {
 		mAddRemoveListenersLock = new Object();
 		mTryingReconnectLock = new Object();
 		mIsTryingReconnect = false;
-		isForeground = false;
+		isWatching = false;
 		mSavedSelectedContacts = getSharedPreferences(PickContactsActivity.SAVED_SELECTED_CONTACTS, MODE_PRIVATE);
 		GreenToTalkApplication application= (GreenToTalkApplication)getApplication();
 		mSettings = PreferenceManager.getDefaultSharedPreferences(application);
@@ -121,7 +119,16 @@ public class ContactListListenerService extends Service {
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
 		Log.i(TAG, "Received intent: " + intent);
-		if (intent != null) {
+		mForegroundStateEnabled = mSettings.getBoolean(GreenToTalkApplication.ONGOING_NOTIFICATION, false);
+		if (intent == null) {
+			Log.i(TAG, "onStartCommand: not a foreground");
+			// we get here after android stopped this service and now restarting it
+			if (!mConnectionManager.isConnected()) {
+				Log.i(TAG, "onStartCommand: not a foreground and trying to reconnect...");
+				tryReconnect();
+			}
+		}
+		else {
 			if (intent.getBooleanExtra(START_UPDATE_CONTACT_LIST, false)) {
 				mConnectionManager.addRosterListener(mUpdateContactListListener);
 				Log.i(TAG, "Added mUpdateContactListListener");
@@ -132,22 +139,18 @@ public class ContactListListenerService extends Service {
 				Log.i(TAG, "Removed mUpdateContactListListener");
 				return START_STICKY;
 			}
-			Map<String, String> selectedContacts = new HashMap<String, String>();
-			Bundle bundle = intent.getBundleExtra(PickContactsActivity.SAVED_SELECTED_CONTACTS);
-			Set<String> emails = bundle.keySet();  
-			for (String email: emails) {
-				selectedContacts.put(email, bundle.getString(email));
-			}
-			synchronized (this) {
-				mSelectedContacts = selectedContacts;
-			}
-			if (selectedContacts.isEmpty()) {
-				stopForeground(true);
-				return START_STICKY;
-			}
-			Notification notification = getForegroundNotification(getNamesString(null), true);
-			startForeground(notification);
 		}
+		@SuppressWarnings("unchecked")
+		Map<String, String> selectedContacts = (Map<String, String>)(mSavedSelectedContacts.getAll());
+		synchronized (this) {
+			mSelectedContacts = selectedContacts;
+		}
+		if (selectedContacts.isEmpty()) {
+			stopWatching();
+			return START_STICKY;
+		}
+		Notification notification = getForegroundNotification(getNamesString(null), true);
+		startWatching(notification);
 		return START_STICKY;
 	}
 
@@ -192,7 +195,17 @@ public class ContactListListenerService extends Service {
 		Log.i(TAG, "onDestroy...");
 		removeListeners();
 		unregisterReceiver(mBroadcastReceiver);
-		isForeground = false;
+		isWatching = false;
+		if (!mForegroundStateEnabled && !mConnectionManager.isDisconnecting()) {
+			if (isConnectedToInternet(this)) {
+				Log.i(TAG, "onDestroy: real disconnection");
+				mConnectionManager.disconnect();
+			}
+			else {
+				Log.i(TAG, "onDestroy: work around disconnection");
+				mConnectionManager.removeOldConnection();
+			}
+		}
 		Log.i(TAG, "onDestroy... Done");
 	}
 
@@ -236,7 +249,7 @@ public class ContactListListenerService extends Service {
 			mClearNotificationHandler.postDelayed(mClearNotificationTask, 30000);
 		}
 
-		if (mSelectedContacts.size() > 1)
+		if (mForegroundStateEnabled && mSelectedContacts.size() > 1)
 			notificationManager.notify(ONGOING_NOTIFICATION, getForegroundNotification(getNamesString(name), false));				
 	}
 
@@ -256,7 +269,7 @@ public class ContactListListenerService extends Service {
 	boolean vibrate() {
 		return mSettings.getBoolean(GreenToTalkApplication.VIBRATE_KEY, false);
 	}
-	
+
 	boolean autoClearNotification() {
 		return mSettings.getBoolean(GreenToTalkApplication.AUTO_CLEAR_NOTIFICATION, false);
 	}
@@ -286,25 +299,22 @@ public class ContactListListenerService extends Service {
 		return connectivityManager.getActiveNetworkInfo();
 	}
 
-	void addListeners() {
+	private void addListeners() {
 		synchronized (mAddRemoveListenersLock) {
 			mSelectedContactsListener = new SelectedContactsListener(this);
 			mUpdateContactListListener = new UpdateContactListListener(this);
-//			mConnectionListener = new KeepAliveConnectionListener(this);
 			mConnectionManager.addRosterListener(mSelectedContactsListener);
-//			mConnectionManager.addConnectionListener(mConnectionListener);
 		}
 	}
 
-	void removeListeners() {
+	private void removeListeners() {
 		synchronized (mAddRemoveListenersLock) {
 			mConnectionManager.removeRosterListener(mSelectedContactsListener);
 			mConnectionManager.removeRosterListener(mUpdateContactListListener);
-//			mConnectionManager.removeConnectionListener(mConnectionListener);
 		}
 	}
 
-	void tryReconnect() {
+	private void tryReconnect() {
 		if (mConnectionManager.isDisconnecting()) {
 			return;
 		}
@@ -316,14 +326,13 @@ public class ContactListListenerService extends Service {
 				if (isConnected) {
 					String username = mSettings.getString(GreenToTalkApplication.ACCOUNT_USERNAME_KEY, "");
 					String password = mSettings.getString(GreenToTalkApplication.ACCOUNT_PASSWORD_KEY, "");
-					new AsyncConnectionTask(ContactListListenerService.this, false).execute(username, password);
+					if (mConnectionManager.connectAndRetry(username, password)) {
+						addListeners();
+					}
 				}
+				mIsTryingReconnect = false;
 			}
 		}
-	}
-
-	void setIsTryingReconnect(boolean flag) {
-		mIsTryingReconnect = flag;
 	}
 
 	void handleSelectedContact(Presence presence, String email) {
@@ -343,7 +352,7 @@ public class ContactListListenerService extends Service {
 			Log.i(TAG,"SENT BROADCAST FOR EMAIL "+email);
 		}
 		if (mSelectedContacts.isEmpty()) {
-			stopForeground();
+			stopWatching();
 		}
 	}
 
@@ -351,24 +360,31 @@ public class ContactListListenerService extends Service {
 		return mSelectedContacts.containsKey(email);
 	}
 
-	private void startForeground(Notification notification) {
-		synchronized (foregroundLock) {
-			startForeground(ONGOING_NOTIFICATION, notification);
-			isForeground = true;
+	private void startWatching(Notification notification) {
+		synchronized (watchingLock) {
+			if (mForegroundStateEnabled) {
+				startForeground(ONGOING_NOTIFICATION, notification);
+			}
+			else {
+				stopForeground(true);
+			}
+			isWatching = true;
 		}
 	}
 
-	private void stopForeground() {
-		synchronized (foregroundLock) {
-			stopForeground(true);
-			isForeground = false;
+	private void stopWatching() {
+		synchronized (watchingLock) {
+			if (mForegroundStateEnabled) {
+				stopForeground(true);
+			}
+			isWatching = false;
 		}
 	}
 
-	static boolean isForeGround() {
+	static boolean isWatching() {
 		boolean result;
-		synchronized (foregroundLock) {
-			result = isForeground;
+		synchronized (watchingLock) {
+			result = isWatching;
 		}
 		return result;
 	}

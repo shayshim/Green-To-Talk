@@ -78,7 +78,7 @@ public class SigninActivity extends Activity {
 			finish();
 			return;
 		}
-		else if (ContactListListenerService.isForeGround()) {
+		else if (ContactListListenerService.isWatching()) {
 			Intent i = new Intent(this,PickContactsActivity.class);
 			i.putExtra(PickContactsActivity.CLEAR_LIST, true);
 			startActivity(i);
@@ -138,7 +138,7 @@ public class SigninActivity extends Activity {
 		}
 		else {
 			// Start authenticating...
-			new AsyncConnectionTask(this, true).execute(mUsername, mPassword);
+			new AsyncConnectionTask(this).execute(mUsername, mPassword);
 		}
 	}
 
